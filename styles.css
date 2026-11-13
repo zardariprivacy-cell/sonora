@@ -8,6 +8,7 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none !important}
+body.app-mode .upload-card{display:none}
 html,body{height:100%}
 body{
   font-family:'Poppins',system-ui,sans-serif;color:var(--text);

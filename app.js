@@ -99,7 +99,7 @@ function trackRow(t){
   const isCur = current() && current().id === t.id;
   return `<div class="track ${isCur ? 'playing' : ''}" data-play="${t.id}">
     ${coverHTML(t, 'cover-sm')}
-    <div class="track-meta"><strong>${t.title}</strong><span>${t.artist}${t.local ? ' • Device' : ''}</span></div>
+    <div class="track-meta"><strong>${t.title}</strong><span>${t.artist}${t.device ? ' • Phone' : (t.local ? ' • Device' : '')}</span></div>
     <span class="eq-mini"><i></i><i></i><i></i></span>
     <button class="add-btn" data-addto="${t.id}" title="Add to playlist">＋</button>
     <button class="heart-btn ${state.favorites.has(t.id) ? 'liked' : ''}" data-fav="${t.id}" title="Favorite">♥</button>
@@ -107,6 +107,8 @@ function trackRow(t){
 }
 function bindList(){ /* clicks are handled by one delegated listener below — survives re-renders */ }
 document.addEventListener('click', e => {
+  const acc = e.target.closest('[data-access]');
+  if (acc){ if (window.SonoraNative) SonoraNative.requestAccess(); return; }
   const fav = e.target.closest('[data-fav]');
   if (fav){ toggleFav(fav.dataset.fav); return; }
   const add = e.target.closest('[data-addto]');
@@ -479,6 +481,28 @@ $$('#presetChips .chip').forEach(c => c.onclick = () => {
   $$('#presetChips .chip').forEach(x => x.classList.toggle('active', x === c));
   buildEqUI(); applyEQ(); toast('Preset: ' + c.textContent);
 });
+
+/* ---- Android app mode: sirf phone ke apne ganay ---- */
+let APP_MODE = false;
+if (window.SonoraNative) {
+  APP_MODE = true;
+  document.body.classList.add('app-mode');
+  window.onSonoraAccessChanged = () => location.reload();
+  const hint = document.querySelector('#view-library .hello-sub');
+  if (hint) hint.style.display = 'none';
+  try {
+    const dev = JSON.parse(SonoraNative.getSongs() || '[]');
+    const devTracks = dev.map((s, i) => ({
+      id: s.id, title: s.title, artist: s.artist, genre: 'Phone',
+      hue: 255 + (i * 37) % 80, src: s.src, device: true, duration: s.duration || 0,
+      lyrics: [[0,'♪ ♪ ♪'],[8,'Your song, from your phone'],[16,'Sing along with Sonora']],
+    }));
+    TRACKS.length = 0; TRACKS.push(...devTracks);
+    state.queue = TRACKS.map(t => t.id); state.index = -1;
+    state.favorites = new Set([...state.favorites].filter(id => String(id).startsWith('dev')));
+    state.playlists.forEach(p => { p.trackIds = p.trackIds.filter(id => String(id).startsWith('dev')); });
+  } catch(e) {}
+}
 
 /* ================= init ================= */
 buildEqUI();
