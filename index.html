@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sonora — Feel the Music</title>
+<meta name="description" content="Sonora is a modern purple-neon music player: trending songs, playlists, favorites, synced lyrics, equalizer and background playback.">
+<meta name="theme-color" content="#0d0218">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="phone" id="app">
+
+  <!-- ======= TOP BAR ======= -->
+  <header class="topbar">
+    <button class="icon-btn" id="btnMenu" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+    </button>
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 15v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="7" rx="2" fill="currentColor" stroke="none"/><rect x="17" y="14" width="4" height="7" rx="2" fill="currentColor" stroke="none"/><path d="M10 10v4M13 8v8M16 11v2" stroke-width="2"/></svg>
+      <span>SONORA</span>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="btnTopSearch" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </button>
+      <span class="vip-badge">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-1.6 9.2a2 2 0 0 1-2 1.8H6.6a2 2 0 0 1-2-1.8L3 8z"/></svg>
+        VIP
+      </span>
+    </div>
+  </header>
+
+  <main class="views">
+
+    <!-- ======= HOME ======= -->
+    <section class="view active" id="view-home">
+      <p class="hello">Hello,</p>
+      <h1 class="hello-name">Music Lover! <span class="wave">👋</span></h1>
+      <p class="hello-sub">Discover Your Next Favourite Song</p>
+
+      <div class="hero-card">
+        <div class="hero-text">
+          <h2>Feel the Music</h2>
+          <p>Play. Relax. Repeat.</p>
+          <button class="hero-play" id="btnHeroPlay" aria-label="Play trending">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5z"/></svg>
+          </button>
+        </div>
+        <svg class="hero-art" viewBox="0 0 120 120" fill="none">
+          <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e879f9"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs>
+          <path d="M22 78V58a38 38 0 0 1 76 0v20" stroke="url(#hg)" stroke-width="7" stroke-linecap="round"/>
+          <rect x="12" y="72" width="20" height="34" rx="10" fill="url(#hg)"/>
+          <rect x="88" y="72" width="20" height="34" rx="10" fill="url(#hg)"/>
+          <path d="M46 62v18M56 54v34M66 60v22M76 50v42" stroke="url(#hg)" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="row-head">
+        <h3>Trending Now <span class="fire">🔥</span></h3>
+        <button class="see-all" data-goto="search">See All ›</button>
+      </div>
+      <div class="trend-row" id="trendRow"></div>
+
+      <div class="row-head">
+        <h3>Your Playlists</h3>
+        <button class="see-all" data-goto="library">See All ›</button>
+      </div>
+      <div class="playlist-cards" id="playlistCards"></div>
+
+      <div class="row-head"><h3>Made For You</h3></div>
+      <div class="track-list" id="homeList"></div>
+    </section>
+
+    <!-- ======= SEARCH ======= -->
+    <section class="view" id="view-search">
+      <h2 class="view-title">Search</h2>
+      <label class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="searchInput" type="search" placeholder="Songs, artists, moods…" autocomplete="off">
+      </label>
+      <div class="chip-row" id="genreChips"></div>
+      <div class="track-list" id="searchList"></div>
+      <p class="empty-note" id="searchEmpty" hidden>No songs matched. Try another word.</p>
+    </section>
+
+    <!-- ======= LIBRARY ======= -->
+    <section class="view" id="view-library">
+      <div class="row-head">
+        <h2 class="view-title">My Playlists</h2>
+        <button class="icon-btn accent" id="btnNewPlaylist2" aria-label="New playlist">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <div id="playlistList"></div>
+
+      <h2 class="view-title" style="margin-top:26px">Your Device Songs</h2>
+      <p class="hello-sub">Add MP3s from your phone — they play inside Sonora, screen off bhi chalega (browser khula rakho).</p>
+      <label class="upload-card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 16V4m0 0L7 9m5-5l5 5"/><path d="M4 20h16"/></svg>
+        <span>Add songs from device</span>
+        <input id="fileInput" type="file" accept="audio/*" multiple hidden>
+      </label>
+      <div class="track-list" id="localList"></div>
+    </section>
+
+    <!-- ======= FAVORITES ======= -->
+    <section class="view" id="view-favorites">
+      <div class="row-head">
+        <h2 class="view-title"><span class="heart-ico">♥</span> Favorites</h2>
+        <button class="icon-btn" data-goto="search" aria-label="Search favorites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        </button>
+      </div>
+      <div class="track-list" id="favList"></div>
+      <p class="empty-note" id="favEmpty" hidden>Abhi koi favorite nahi. Kisi song par ♥ dabao, wo yahan aa jayega.</p>
+    </section>
+
+    <!-- ======= EQUALIZER ======= -->
+    <section class="view" id="view-equalizer">
+      <div class="row-head">
+        <button class="icon-btn" data-goto="profile" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <h2 class="view-title">Equalizer</h2>
+        <label class="switch"><input type="checkbox" id="eqMaster" checked><span></span></label>
+      </div>
+      <div class="eq-sliders" id="eqSliders"></div>
+      <div class="eq-row">
+        <span>Bass Boost</span>
+        <label class="switch"><input type="checkbox" id="bassToggle"><span></span></label>
+      </div>
+      <div class="eq-row">
+        <span>Virtualizer</span>
+        <label class="switch"><input type="checkbox" id="virtToggle"><span></span></label>
+      </div>
+      <div class="chip-row" id="presetChips">
+        <button class="chip active" data-preset="normal">Normal</button>
+        <button class="chip" data-preset="rock">Rock</button>
+        <button class="chip" data-preset="pop">Pop</button>
+        <button class="chip" data-preset="jazz">Jazz</button>
+        <button class="chip" data-preset="bass">Bass</button>
+      </div>
+      <p class="hello-sub">Equalizer device se add ki hui songs par full kaam karta hai. Demo streams seedha play hotay hain taake awaaz kabhi band na ho.</p>
+    </section>
+
+    <!-- ======= PROFILE ======= -->
+    <section class="view" id="view-profile">
+      <div class="profile-head">
+        <div class="avatar">N</div>
+        <h2>Nawazish Ali</h2>
+        <p class="premium">Premium Member 👑</p>
+      </div>
+      <nav class="menu-list">
+        <button data-goto="home"><span class="m-ico">⌂</span> Home</button>
+        <button data-goto="library"><span class="m-ico">♪</span> My Playlists</button>
+        <button data-goto="favorites"><span class="m-ico">♥</span> Favorites</button>
+        <button data-goto="equalizer"><span class="m-ico">≣</span> Equalizer</button>
+        <button id="menuAbout"><span class="m-ico">ⓘ</span> About App</button>
+      </nav>
+      <button class="logout-btn" id="btnLogout">Log Out</button>
+      <p class="version">Sonora v1.0 • Made with ♥ for music lovers</p>
+    </section>
+  </main>
+
+  <!-- ======= MINI PLAYER ======= -->
+  <div class="mini-player" id="miniPlayer" hidden>
+    <div class="mini-cover" id="miniCover"></div>
+    <div class="mini-meta" id="miniMeta">
+      <strong id="miniTitle">—</strong>
+      <span id="miniArtist">—</span>
+    </div>
+    <button class="icon-btn" id="btnMiniPrev" aria-label="Previous">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+    </button>
+    <button class="mini-play" id="btnMiniPlay" aria-label="Play or pause">
+      <svg id="miniPlayIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5z"/></svg>
+    </button>
+    <button class="icon-btn" id="btnMiniNext" aria-label="Next">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+    </button>
+    <div class="mini-progress"><div id="miniProgressFill"></div></div>
+  </div>
+
+  <!-- ======= BOTTOM NAV ======= -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-goto="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2v-9z"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-btn" data-goto="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <span>Search</span>
+    </button>
+    <button class="nav-btn" data-goto="library">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h13M4 12h13M4 18h9"/><path d="M20 15v6l-3.5-2v-4"/></svg>
+      <span>Library</span>
+    </button>
+    <button class="nav-btn" data-goto="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+  <!-- ======= NOW PLAYING ======= -->
+  <div class="now-playing" id="nowPlaying" hidden>
+    <div class="np-top">
+      <button class="icon-btn" id="btnCloseNp" aria-label="Close player">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 9l7 7 7-7"/></svg>
+      </button>
+      <div class="np-head-meta">
+        <strong id="npTitleTop">—</strong>
+        <span id="npArtistTop">—</span>
+      </div>
+      <button class="icon-btn" id="btnQueue" aria-label="Queue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </button>
+    </div>
+
+    <div class="np-cover" id="npCover">
+      <div class="np-bars" id="npBars"><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+
+    <div class="np-meta">
+      <div>
+        <h2 id="npTitle">—</h2>
+        <p id="npArtist">—</p>
+      </div>
+      <button class="heart-btn" id="btnNpFav" aria-label="Favorite">♥</button>
+    </div>
+
+    <div class="np-progress">
+      <input type="range" id="seekBar" min="0" max="1000" value="0">
+      <div class="np-times"><span id="timeCur">0:00</span><span id="timeDur">0:00</span></div>
+    </div>
+
+    <div class="np-controls">
+      <button class="ctrl" id="btnShuffle" aria-label="Shuffle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h4l10 10h4m0 0l-3-3m3 3l-3 3M3 17h4l2.5-2.5M13.5 9.5L17 6h4m0 0l-3-3m3 3l-3 3"/></svg>
+      </button>
+      <button class="ctrl" id="btnPrev" aria-label="Previous">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+      </button>
+      <button class="ctrl play-big" id="btnPlay" aria-label="Play or pause">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5z"/></svg>
+      </button>
+      <button class="ctrl" id="btnNext" aria-label="Next">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+      </button>
+      <button class="ctrl" id="btnRepeat" aria-label="Repeat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l3 3-3 3"/><path d="M3 11V9a3 3 0 0 1 3-3h14M7 22l-3-3 3-3"/><path d="M21 13v2a3 3 0 0 1-3 3H4"/></svg>
+        <span class="repeat-one" id="repeatOne" hidden>1</span>
+      </button>
+    </div>
+
+    <div class="np-volume">
+      <span>🔊</span>
+      <input type="range" id="volBar" min="0" max="100" value="90">
+    </div>
+
+    <button class="lyrics-toggle" id="btnLyrics">
+      <span>♪ Lyrics</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 15l7-7 7 7"/></svg>
+    </button>
+    <div class="lyrics-sheet" id="lyricsSheet" hidden></div>
+    <div class="queue-sheet" id="queueSheet" hidden>
+      <h4>Up Next</h4>
+      <div id="queueList"></div>
+    </div>
+  </div>
+
+  <!-- ======= MODALS / TOAST ======= -->
+  <div class="modal" id="playlistModal" hidden>
+    <div class="modal-card">
+      <h3>New Playlist</h3>
+      <input id="playlistName" type="text" placeholder="Playlist name — e.g. Chill Vibes" maxlength="40">
+      <div class="modal-actions">
+        <button class="btn ghost" id="btnCancelPlaylist">Cancel</button>
+        <button class="btn primary" id="btnCreatePlaylist">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="addToModal" hidden>
+    <div class="modal-card">
+      <h3>Add to playlist</h3>
+      <div id="addToList"></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="btnCancelAddTo">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <audio id="audio" preload="metadata"></audio>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
