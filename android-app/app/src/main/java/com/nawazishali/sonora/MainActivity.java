@@ -150,8 +150,11 @@ public class MainActivity extends Activity {
                     String title = cursor.getString(titleCol);
                     String artist = cursor.getString(artistCol);
                     long durMs = cursor.getLong(durCol);
-                    if (title == null || title.trim().isEmpty()) title = "Unknown song";
-                    if (artist == null || artist.equals("<unknown>")) artist = "Unknown artist";
+                    // Faltu entries hatao: jin par artist ka naam hi nahi (WhatsApp/recorder
+                    // wali awazein) aur 30 second se chhoti clips — sirf asal ganay rakho.
+                    if (artist == null || artist.equals("<unknown>") || artist.trim().isEmpty()) continue;
+                    if (durMs > 0 && durMs < 30000) continue;
+                    if (title == null || title.trim().isEmpty()) continue;
                     JSONObject o = new JSONObject();
                     o.put("id", "dev" + id);
                     o.put("title", title);
