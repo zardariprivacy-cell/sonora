@@ -1,5 +1,5 @@
 /* Sonora service worker — caches the app shell so the player opens fast and works offline (streams need internet). */
-const CACHE = 'sonora-v1';
+const CACHE = 'sonora-v2';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

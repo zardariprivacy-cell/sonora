@@ -105,22 +105,24 @@ function trackRow(t){
     <button class="heart-btn ${state.favorites.has(t.id) ? 'liked' : ''}" data-fav="${t.id}" title="Favorite">♥</button>
   </div>`;
 }
-function bindList(container){
-  container.querySelectorAll('[data-play]').forEach(row => {
-    row.addEventListener('click', e => {
-      if (e.target.closest('[data-fav]') || e.target.closest('[data-addto]')) return;
-      const id = row.dataset.play;
-      const siblings = [...container.querySelectorAll('[data-play]')].map(r => r.dataset.play);
-      playQueue(siblings.length ? siblings : allTracks().map(t => t.id), id, container.dataset.name || 'Sonora Mix');
-    });
-  });
-  container.querySelectorAll('[data-fav]').forEach(b => b.addEventListener('click', () => toggleFav(b.dataset.fav)));
-  container.querySelectorAll('[data-addto]').forEach(b => b.addEventListener('click', () => openAddTo(b.dataset.addto)));
-}
+function bindList(){ /* clicks are handled by one delegated listener below — survives re-renders */ }
+document.addEventListener('click', e => {
+  const fav = e.target.closest('[data-fav]');
+  if (fav){ toggleFav(fav.dataset.fav); return; }
+  const add = e.target.closest('[data-addto]');
+  if (add){ openAddTo(add.dataset.addto); return; }
+  const trend = e.target.closest('[data-trend]');
+  if (trend){ playQueue(TRACKS.map(t => t.id), trend.dataset.trend, 'Trending Now'); return; }
+  const row = e.target.closest('[data-play]');
+  if (row){
+    const container = row.closest('[data-name]');
+    const siblings = container ? [...container.querySelectorAll('[data-play]')].map(r => r.dataset.play) : [];
+    playQueue(siblings.length ? siblings : allTracks().map(t => t.id), row.dataset.play, (container && container.dataset.name) || 'Sonora Mix');
+  }
+});
 function renderHome(){
   $('#trendRow').innerHTML = TRACKS.slice(0, 7).map(t =>
     `<div class="trend-card" data-trend="${t.id}"><div class="trend-cover" style="${coverStyle(t)}"><div class="cover-art"></div></div><strong>${t.title}</strong><span>${t.artist}</span></div>`).join('');
-  $$('#trendRow [data-trend]').forEach(c => c.onclick = () => playQueue(TRACKS.map(t => t.id), c.dataset.trend, 'Trending Now'));
   renderPlaylistCards();
   const list = $('#homeList'); list.dataset.name = 'Made For You';
   list.innerHTML = TRACKS.map(trackRow).join(''); bindList(list);
@@ -197,9 +199,15 @@ $('#btnCreatePlaylist').onclick = () => {
 };
 function openAddTo(id){
   state.addToTrackId = id;
-  $('#addToList').innerHTML = state.playlists.map(p =>
-    `<button class="addto-row" data-addpl="${p.id}">♪ ${p.name} <span style="color:var(--muted);font-size:12px">(${p.trackIds.length})</span></button>`).join('')
-    + `<button class="addto-row" data-addpl="__new">＋ New playlist…</button>`;
+  if (!Array.isArray(state.playlists) || !state.playlists.length){
+    state.playlists = [{ id:'p1', name:'My Favorites', hue:330, trackIds:[] }];
+  }
+  let rows = '';
+  try {
+    rows = state.playlists.map(p =>
+      `<button class="addto-row" data-addpl="${p.id}">♪ ${p.name} <span style="color:var(--muted);font-size:12px">(${(p.trackIds || []).length})</span></button>`).join('');
+  } catch(e){ rows = ''; }
+  $('#addToList').innerHTML = rows + `<button class="addto-row" data-addpl="__new">＋ New playlist…</button>`;
   $('#addToModal').hidden = false;
   $$('#addToList [data-addpl]').forEach(b => b.onclick = () => {
     if (b.dataset.addpl === '__new'){
@@ -252,6 +260,10 @@ function loadTrack(id, autoplay = true){
   audio.src = t.src;
   audio.playbackRate = 1;
   if (autoplay) audio.play().catch(() => toast('Play dabao — browser ne autoplay roka'));
+  clearTimeout(window._loadTimer);
+  window._loadTimer = setTimeout(() => {
+    if (audio.readyState < 3) toast('Gana load ho raha hai… slow net par kuch seconds lagte hain');
+  }, 1600);
   updateMediaSession(t);
   syncPlayerUI(); renderAllListsLight();
 }
@@ -292,6 +304,15 @@ function prev(){
   el.addEventListener('ended', () => { if (el === audio) next(true); });
   el.addEventListener('loadedmetadata', () => { if (el === audio) syncPlayerUI(); });
   el.addEventListener('timeupdate', () => { if (el === audio) syncProgress(); });
+  el.addEventListener('waiting', () => { if (el === audio) document.body.classList.add('audio-loading'); });
+  el.addEventListener('playing', () => { if (el === audio) document.body.classList.remove('audio-loading'); });
+  el.addEventListener('canplay', () => { if (el === audio) document.body.classList.remove('audio-loading'); });
+  el.addEventListener('error', () => {
+    if (el === audio && el.getAttribute('src')){
+      document.body.classList.remove('audio-loading');
+      toast('Gana load nahi ho saka — internet check karke dobara tap karo');
+    }
+  });
 });
 
 function syncProgress(){
