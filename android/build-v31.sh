@@ -73,6 +73,15 @@ if queries_blocks:
     q = "\n    ".join(b.strip() for b in queries_blocks)
     s = s.replace("</manifest>", "    " + q + "\n</manifest>", 1)
 
+# Substitute the Gradle-style ${applicationId} placeholder that AAR manifests
+# use in provider authorities (ads-lite, startup-runtime, work-runtime).
+# Left literal, every app built with this pipeline declares the SAME
+# authorities ("${applicationId}.mobileadsinitprovider",
+# "${applicationId}.androidx-startup") and Android refuses to install a
+# second such app: INSTALL_FAILED_CONFLICTING_PROVIDER.
+s = s.replace("${applicationId}", "com.nawazishali.sonora")
+assert "${applicationId}" not in s, "unsubstituted applicationId placeholder remains"
+
 open("build-v31/AndroidManifest.xml", "w").write(s)
 open("build-v31/extra-packages.txt", "w").write(":".join(extra_packages))
 print("merged manifest written")

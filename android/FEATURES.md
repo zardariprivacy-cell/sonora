@@ -181,3 +181,23 @@ Nothing here is claimed as device-tested — see TESTING-REPORT.md.
   yet. The integration fails silently by design (no dialogs, no crashes,
   banner space collapses). Ads will start serving once Google approves the
   account — no app update needed. Never click your own ads.
+
+## Install-conflict fix (Nov 17, 2026) — v3.1 re-shipped
+
+- 🐛→✅ v3.1 as first shipped would not install on a phone that also has
+  Ilmora installed: "App not installed as package conflicts with an
+  existing package." Root cause: the manual ads pipeline merged GMS AAR
+  manifests without substituting the `${applicationId}` placeholder, so
+  the APK declared provider authorities literally named
+  `${applicationId}.mobileadsinitprovider` and
+  `${applicationId}.androidx-startup` — identical to Ilmora's, and Android
+  allows only one app per provider authority
+  (INSTALL_FAILED_CONFLICTING_PROVIDER).
+- ✅ Fix: `build-v31.sh` now substitutes `${applicationId}` →
+  `com.nawazishali.sonora` in the merged manifest before linking.
+  Verified on the delivery APK (aapt2 xmltree): authorities are
+  `com.nawazishali.sonora.mobileadsinitprovider` and
+  `com.nawazishali.sonora.androidx-startup`; no literal placeholder
+  remains. Signing cert unchanged (SHA-256
+  066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050), so it
+  installs over v3.0. Drive file replaced in place, size/MD5 verified.
