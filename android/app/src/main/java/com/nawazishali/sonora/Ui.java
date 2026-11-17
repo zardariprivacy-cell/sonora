@@ -76,15 +76,43 @@ public class Ui {
      * Returns a NEW drawable each call (drawables are not shared between views).
      */
     public static Drawable card3d(int radiusDp) {
+        return card3d(radiusDp, new int[]{Theme.PRIMARY, Theme.ACCENT});
+    }
+
+    /**
+     * Same layered 3D card, but the border gradient is taken from a colour
+     * pair (e.g. {@link #gradientFor(int)}) so each box can carry its own
+     * harmonious tint — used by the video player's bottom options bar (v3.5).
+     */
+    public static Drawable card3d(int radiusDp, int[] grad) {
         GradientDrawable border = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{withAlpha(Theme.PRIMARY, Theme.LIGHT ? 165 : 185),
-                        withAlpha(Theme.ACCENT, Theme.LIGHT ? 110 : 120)});
+                new int[]{withAlpha(grad[0], Theme.LIGHT ? 165 : 185),
+                        withAlpha(grad[1], Theme.LIGHT ? 110 : 120)});
         border.setCornerRadius(dp(radiusDp));
         int top = Theme.LIGHT ? Theme.CARD : lighten(Theme.ELEVATED, 0.16f);
         int bottom = Theme.LIGHT ? Theme.ELEVATED : Theme.CARD;
         GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{top, bottom});
         fill.setCornerRadius(dp(Math.max(4, radiusDp - 2)));
+        LayerDrawable ld = new LayerDrawable(new Drawable[]{border, fill});
+        ld.setLayerInset(1, dp(2), dp(2), dp(2), dp(2));
+        return ld;
+    }
+
+    /**
+     * Circular variant of the layered 3D treatment — gradient rim + top-lit
+     * fill — for round chips (video player transport/top buttons, v3.5).
+     */
+    public static Drawable circle3d(int[] grad) {
+        GradientDrawable border = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{withAlpha(grad[0], Theme.LIGHT ? 180 : 200),
+                        withAlpha(grad[1], Theme.LIGHT ? 130 : 150)});
+        border.setShape(GradientDrawable.OVAL);
+        int top = Theme.LIGHT ? Theme.CARD : lighten(Theme.ELEVATED, 0.16f);
+        int bottom = Theme.LIGHT ? Theme.ELEVATED : Theme.CARD;
+        GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{top, bottom});
+        fill.setShape(GradientDrawable.OVAL);
         LayerDrawable ld = new LayerDrawable(new Drawable[]{border, fill});
         ld.setLayerInset(1, dp(2), dp(2), dp(2), dp(2));
         return ld;

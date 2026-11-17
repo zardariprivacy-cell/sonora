@@ -71,7 +71,10 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     private float speed = 1f;
     private boolean repeatOne = false;
     private int subSel = 0; // subtitle menu selection: 0 = Off, 1..n = embedded, last = external .srt
-    private TextView repeatBtn;
+    // v3.5: the bottom options bar is a set of colourful 3D boxes, not text.
+    private LinearLayout toolsBox;
+    private View[] toolBoxes;
+    private View repeatBox;
     private int videoW = 0, videoH = 0;
     private List<SrtParser.Cue> srtCues;
     private Uri srtUri;
@@ -199,6 +202,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         playBtn.setImageResource(R.drawable.ic_pause);
         playBtn.setColorFilter(0xFFFFFFFF);
         playBtn.setBackground(Ui.gradientBg(34));
+        playBtn.setElevation(Ui.dp(8)); // v3.5: real shadow under the gradient disc
         playBtn.setPadding(Ui.dp(15), Ui.dp(15), Ui.dp(15), Ui.dp(15));
         LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(Ui.dp(66), Ui.dp(66));
         plp.setMargins(Ui.dp(16), 0, Ui.dp(16), 0);
@@ -214,7 +218,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.VERTICAL);
         bottomBar.setBackgroundColor(0x88000000);
-        bottomBar.setPadding(Ui.dp(10), Ui.dp(6), Ui.dp(10), Ui.dp(10));
+        bottomBar.setPadding(Ui.dp(10), Ui.dp(8), Ui.dp(10), Ui.dp(12));
         FrameLayout.LayoutParams bbp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         bbp.gravity = Gravity.BOTTOM;
@@ -247,18 +251,25 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
             }
         });
 
-        LinearLayout tools = new LinearLayout(this);
-        tools.setOrientation(LinearLayout.HORIZONTAL);
-        tools.setGravity(Gravity.CENTER);
-        speedLabel = toolBtn("1.0x", v -> speedMenu());
-        tools.addView(speedLabel);
-        tools.addView(toolBtn("Aspect", v -> aspectMenu()));
-        tools.addView(toolBtn("Subtitles", v -> subtitleMenu()));
-        tools.addView(toolBtn("Audio", v -> audioTrackMenu()));
-        repeatBtn = toolBtn(repeatOne ? "Repeat: On" : "Repeat", v -> repeatMenu());
-        tools.addView(repeatBtn);
-        tools.addView(toolBtn("Rotate", v -> rotateMenu()));
-        bottomBar.addView(tools);
+        // v3.5: the bottom options BAR itself is now made of colourful 3D
+        // boxes — one per option — replacing the bare white text labels the
+        // user rejected ("Bottom waly option 3D box main nahi kiya"). Each
+        // box carries its own tint from the gradient-badge family; tapping a
+        // box runs exactly the v3.4 action (the centered 3D option menu).
+        toolsBox = new LinearLayout(this);
+        toolsBox.setOrientation(LinearLayout.VERTICAL);
+        toolBoxes = new View[6];
+        toolBoxes[0] = toolBox(R.drawable.ic_timer, "1.0x", 0, v -> speedMenu());
+        toolBoxes[1] = toolBox(R.drawable.ic_crop, "Aspect", 1, v -> aspectMenu());
+        toolBoxes[2] = toolBox(R.drawable.ic_subtitle, "Subtitles", 2, v -> subtitleMenu());
+        toolBoxes[3] = toolBox(R.drawable.ic_volume, "Audio", 3, v -> audioTrackMenu());
+        toolBoxes[4] = toolBox(R.drawable.ic_repeat, "Repeat", 4, v -> repeatMenu());
+        toolBoxes[5] = toolBox(R.drawable.ic_refresh, "Rotate", 5, v -> rotateMenu());
+        speedLabel = (TextView) toolBoxes[0].getTag();
+        repeatBox = toolBoxes[4];
+        layoutTools();
+        styleRepeatBox();
+        bottomBar.addView(toolsBox);
         root.addView(bottomBar);
 
         setContentView(root);
@@ -269,8 +280,13 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         ImageView iv = new ImageView(this);
         iv.setImageResource(res);
         iv.setColorFilter(0xFFFFFFFF);
+        // v3.5: small circular 3D chip, same language as the rest of the chrome.
+        iv.setBackground(Ui.circle3d(new int[]{Theme.PRIMARY, Theme.ACCENT}));
+        iv.setElevation(Ui.dp(4));
         iv.setPadding(Ui.dp(9), Ui.dp(9), Ui.dp(9), Ui.dp(9));
-        iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(42), Ui.dp(42)));
+        LinearLayout.LayoutParams tlp2 = new LinearLayout.LayoutParams(Ui.dp(42), Ui.dp(42));
+        tlp2.setMargins(Ui.dp(6), 0, 0, 0);
+        iv.setLayoutParams(tlp2);
         iv.setOnClickListener(click);
         PressFx.apply(iv);
         return iv;
@@ -280,6 +296,9 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         ImageView iv = new ImageView(this);
         iv.setImageResource(res);
         iv.setColorFilter(0xFFFFFFFF);
+        // v3.5: circular 3D chip instead of a bare glyph.
+        iv.setBackground(Ui.circle3d(new int[]{Theme.PRIMARY, Theme.ACCENT}));
+        iv.setElevation(Ui.dp(4));
         iv.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(10));
         iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(52), Ui.dp(52)));
         iv.setOnClickListener(click);
@@ -288,26 +307,93 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     }
 
     private TextView centerTextBtn(String label, View.OnClickListener click) {
-        TextView t = Ui.text(this, label, 13, 0xFFFFFFFF, true);
+        TextView t = Ui.text(this, label, 12, 0xFFFFFFFF, true);
         t.setGravity(Gravity.CENTER);
-        t.setBackground(Ui.rounded(0x661C1030, 20));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(52), Ui.dp(40));
-        lp.setMargins(Ui.dp(8), 0, Ui.dp(8), 0);
+        // v3.5: circular 3D chip instead of the flat dark oval.
+        t.setBackground(Ui.circle3d(new int[]{Theme.PRIMARY, Theme.ACCENT}));
+        t.setElevation(Ui.dp(4));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(48), Ui.dp(48));
+        lp.setMargins(Ui.dp(10), 0, Ui.dp(10), 0);
         t.setLayoutParams(lp);
         t.setOnClickListener(click);
         PressFx.apply(t);
         return t;
     }
 
-    private TextView toolBtn(String label, View.OnClickListener click) {
-        TextView t = Ui.text(this, label, 13, 0xFFFFFFFF, false);
+    /**
+     * One colourful 3D box of the bottom options bar (v3.5): layered 3D
+     * background tinted by the gradient-badge family, a white glyph on top
+     * and a small label under it. The label TextView is kept as the box's tag
+     * so Speed ("1.0x") and Repeat can update their text/state in place.
+     */
+    private LinearLayout toolBox(int iconRes, String label, int gradIndex, View.OnClickListener click) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        box.setPadding(Ui.dp(4), Ui.dp(7), Ui.dp(4), Ui.dp(6));
+        box.setBackground(Ui.card3d(14, Ui.gradientFor(gradIndex)));
+        box.setElevation(Ui.dp(4));
+        ImageView iv = new ImageView(this);
+        iv.setImageResource(iconRes);
+        iv.setColorFilter(0xFFFFFFFF);
+        iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(20), Ui.dp(20)));
+        box.addView(iv);
+        TextView t = Ui.text(this, label, 10.5f, 0xFFFFFFFF, false);
         t.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        t.setLayoutParams(lp);
-        t.setPadding(0, Ui.dp(8), 0, Ui.dp(2));
-        t.setOnClickListener(click);
-        PressFx.apply(t);
-        return t;
+        t.setMaxLines(1);
+        t.setPadding(0, Ui.dp(3), 0, 0);
+        box.addView(t);
+        box.setTag(t);
+        box.setOnClickListener(click);
+        PressFx.apply(box);
+        return box;
+    }
+
+    /**
+     * Lay the six option boxes out: PORTRAIT = two rows of three (each box
+     * wide enough for "Subtitles"), LANDSCAPE = one row of six. The activity
+     * handles rotation itself (configChanges), so this runs at build time and
+     * again from onConfigurationChanged.
+     */
+    private void layoutTools() {
+        if (toolsBox == null || toolBoxes == null) return;
+        for (View b : toolBoxes) {
+            if (b != null && b.getParent() != null)
+                ((android.view.ViewGroup) b.getParent()).removeView(b);
+        }
+        toolsBox.removeAllViews();
+        boolean portrait = getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_PORTRAIT;
+        int perRow = portrait ? 3 : 6;
+        for (int start = 0; start < toolBoxes.length; start += perRow) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            if (start > 0) rlp.setMargins(0, Ui.dp(6), 0, 0);
+            row.setLayoutParams(rlp);
+            for (int i = start; i < Math.min(start + perRow, toolBoxes.length); i++) {
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+                lp.setMargins(Ui.dp(3), 0, Ui.dp(3), 0);
+                toolBoxes[i].setLayoutParams(lp);
+                row.addView(toolBoxes[i]);
+            }
+            toolsBox.addView(row);
+        }
+    }
+
+    /** Repeat state on its box: ON = full Primary→Accent gradient fill. */
+    private void styleRepeatBox() {
+        if (repeatBox == null) return;
+        repeatBox.setBackground(repeatOne
+                ? Ui.gradientBg(14)
+                : Ui.card3d(14, Ui.gradientFor(4)));
+    }
+
+    @Override public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        layoutTools();
     }
 
     // ---------------- gestures ----------------
@@ -755,11 +841,12 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         MediaSheet.showOptions(this, "Repeat", R.drawable.ic_repeat, opts);
     }
 
-    /** Same end state + feedback as the old one-tap Repeat toggle. */
+    /** Same end state + feedback as the old one-tap Repeat toggle; the state
+     *  now shows on the Repeat box itself (gradient fill when ON, v3.5). */
     private void setRepeat(boolean on) {
         repeatOne = on;
         Toast.makeText(this, on ? "Repeat one: on" : "Repeat: off", Toast.LENGTH_SHORT).show();
-        if (repeatBtn != null) repeatBtn.setText(on ? "Repeat: On" : "Repeat");
+        styleRepeatBox();
         scheduleHide();
     }
 

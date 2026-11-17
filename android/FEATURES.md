@@ -319,3 +319,44 @@ sheet actions) is preserved with the same ad unit IDs.
   (SHA-256 066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050),
   so it installs over v3.3. Compile/static-verified only — NOT
   device-tested (see TESTING-REPORT.md).
+
+## v3.5 (versionCode 15, Nov 17 2026) — Video player's bottom options BAR is now colourful 3D boxes
+
+- **The bar itself, not just its menus.** v3.4 converted the option MENUS
+  to centered 3D popups but left the bottom bar that opens them as a row
+  of bare white text labels on black ("1.0x  Aspect  Subtitles  Audio
+  Repeat  Rotate") — the user's screenshot called this out directly
+  ("Bottom waly option 3D box main nahi kiya"). Each of the six options is
+  now its own **colourful 3D box**: the shared layered 3D treatment
+  (gradient border + top-lit fill + real elevation shadow), a white glyph
+  on top and a small label under it.
+- **Each box has its own tint.** The border gradient rotates through the
+  same gradient-badge family used for icon chips (`Ui.gradientFor`):
+  Speed violet→lavender, Aspect pink→violet, Subtitles blue→violet,
+  Audio teal→blue, Repeat violet→pink, Rotate indigo→cyan. New
+  `Ui.card3d(radius, int[])` overload supplies the per-box tint; the
+  original `card3d(radius)` delegates to it with the brand pair.
+- **Layout choice:** PORTRAIT = two rows of three boxes (each box wide
+  enough for the "Subtitles" label at full size); LANDSCAPE = one row of
+  six. The activity handles rotation itself (`configChanges`), so the bar
+  re-flows in `onConfigurationChanged` without recreating the player.
+- **Behaviour is byte-identical to v3.4:** tapping a box opens the same
+  centered 3D option menu (Speed / Aspect / Subtitles / Audio / Repeat /
+  Rotate). The Speed box label still shows the live speed ("1.0x") and
+  updates on change. Repeat's state now shows on the box itself: ON =
+  full Primary→Accent gradient fill, OFF = its tinted 3D box (the toast
+  feedback is unchanged).
+- **Matching chrome, lightly:** the −10s / +10s and prev / next controls
+  are now circular 3D chips (new `Ui.circle3d` — gradient rim + top-lit
+  fill + elevation); the center play/pause disc keeps its gradient and
+  gains a real elevation shadow; the top-right PiP and Lock icons sit in
+  small circular 3D chips. Playback behaviour, double-tap seek,
+  brightness/volume swipes, the seekbar logic and the v3.4 menus are
+  untouched. The bar still auto-hides/shows with the existing controls
+  fade and lives inside the bottom bar, below the seekbar.
+- Delivery APK verified at `~/workspace/your_files/sonora/Sonora.apk`:
+  5,510,438 bytes, MD5 4de55098bb168f7c2cc8af5bf09c4a78, vc15 / 3.5, zero
+  literal `${applicationId}` in the merged manifest, signing cert unchanged
+  (SHA-256 066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050),
+  so it installs over v3.4. Compile/static-verified only — NOT
+  device-tested (see TESTING-REPORT.md).

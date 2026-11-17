@@ -148,3 +148,40 @@ test, as with every Sonora build).
   (g) Edit Profile → Choose photo no longer leaves the dialog floating;
   (h) Videos grid/list toggle icon matches the mode; (i) ads still fail
   silently (account unverified) exactly as before.
+
+## v3.5 (versionCode 15) — verification status
+
+Compile/static-verified only — NOT device-tested (no emulator/KVM in the
+build environment; the user's install on his Infinix Hot 40 is the device
+test, as with every Sonora build).
+
+- Build: `build-v35.sh` (derived from build-v34.sh; same manual pipeline,
+  same `${applicationId}` sed-substitution + assert, same AdMob units),
+  versionCode 15 / versionName 3.5. Build green.
+- Delivery file verified at `~/workspace/your_files/sonora/Sonora.apk`
+  (the exact file that ships, not just the build output): 5,510,438 bytes,
+  MD5 `4de55098bb168f7c2cc8af5bf09c4a78`; aapt2 badging
+  `com.nawazishali.sonora` vc15 / 3.5; `aapt2 dump xmltree` on the merged
+  manifest: zero literal `${applicationId}`; provider authorities
+  `com.nawazishali.sonora.mobileadsinitprovider`,
+  `com.nawazishali.sonora.androidx-startup`,
+  `com.nawazishali.sonora.fileprovider`; apksigner cert SHA-256
+  `066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050`
+  (unchanged — installs over v3.4).
+- What changed is presentation only, in `VideoPlayerActivity` (bottom
+  options bar → six tinted 3D boxes; transport/top controls → circular 3D
+  chips; play disc elevation) plus two new drawable helpers in `Ui`
+  (`card3d(radius, int[])`, `circle3d(int[])`). No playback, gesture,
+  seekbar or menu-action code was modified; the six box click handlers
+  call the same v3.4 menu methods.
+- Device checklist for the user's v3.5 install: (a) in the video player,
+  the bottom bar shows six colourful 3D boxes (portrait: two rows of
+  three; landscape: one row of six) — no bare text row; (b) every box
+  opens its centered 3D menu and each choice works as before; (c) the
+  Speed box label shows the current speed and updates after a change;
+  (d) Repeat ON fills its box with the violet gradient, OFF returns to
+  the tinted box; (e) rotating the phone re-flows the bar between the
+  two-row and one-row layouts without restarting the video; (f) −10s/+10s,
+  prev/next, PiP and Lock appear as round 3D chips and still work;
+  (g) the bar still auto-hides after ~3.5 s and never covers the seekbar;
+  (h) double-tap seek and brightness/volume swipes unchanged.
