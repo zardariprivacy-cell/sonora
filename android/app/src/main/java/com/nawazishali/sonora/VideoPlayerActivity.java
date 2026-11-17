@@ -46,7 +46,8 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     public static int queueIndex = 0;
 
     private static final int REQ_SRT = 991;
-    private static final int ASPECT_FIT = 0, ASPECT_FILL = 1, ASPECT_16_9 = 2, ASPECT_4_3 = 3, ASPECT_ORIGINAL = 4;
+    private static final int ASPECT_FIT = 0, ASPECT_FILL = 1, ASPECT_16_9 = 2, ASPECT_4_3 = 3, ASPECT_ORIGINAL = 4,
+            ASPECT_STRETCH = 5;
 
     private TextureView texture;
     private MediaPlayer player;
@@ -383,17 +384,35 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         }
     }
 
-    /** Repeat state on its box: ON = full Primary→Accent gradient fill. */
+    /**
+     * Repeat state on its box. v3.6: OFF now uses the saturated tint box
+     * (violet→pink) like the other five boxes, so ON needs more than a
+     * fill difference — ON = the brighter Primary→Accent gradient fill
+     * PLUS a bold "Repeat ✓" label (the box's tag TextView).
+     */
     private void styleRepeatBox() {
         if (repeatBox == null) return;
         repeatBox.setBackground(repeatOne
                 ? Ui.gradientBg(14)
                 : Ui.card3d(14, Ui.gradientFor(4)));
+        Object tag = repeatBox.getTag();
+        if (tag instanceof TextView) {
+            TextView t = (TextView) tag;
+            t.setText(repeatOne ? "Repeat ✓" : "Repeat");
+            t.setTypeface(repeatOne ? android.graphics.Typeface.DEFAULT_BOLD
+                    : android.graphics.Typeface.DEFAULT);
+        }
     }
 
     @Override public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         layoutTools();
+        // v3.6: re-fit the video to the NEW screen dimensions. The direct
+        // call covers the common case; the posted call runs after the
+        // rotation relayout settles, when root.getWidth()/getHeight()
+        // definitely report the new orientation's size.
+        updateAspect();
+        if (texture != null) texture.post(this::updateAspect);
     }
 
     // ---------------- gestures ----------------
@@ -416,9 +435,20 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
                 return true;
             }
         });
-        texture.setOnTouchListener((v, e) -> {
-            gestures.onTouchEvent(e);
-            handleSwipe(e);
+        // v3.6: the listener lives on the ROOT, not the TextureView. Since
+        // v3.6 the TextureView is sized to the video's fitted rect, so taps
+        // and swipes landing on the black letterbox bars would never reach
+        // a listener on the view itself. Events are translated into
+        // texture space before use, so the double-tap thirds and the
+        // brightness (left) / volume (right) halves track the actual video
+        // area exactly as they did when the view was full-window. Buttons
+        // and the seek bar still consume their own touches first.
+        root.setOnTouchListener((v, e) -> {
+            MotionEvent te = MotionEvent.obtain(e);
+            te.offsetLocation(-texture.getLeft(), -texture.getTop());
+            gestures.onTouchEvent(te);
+            handleSwipe(te);
+            te.recycle();
             return true;
         });
     }
@@ -510,6 +540,15 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
             return;
         }
         if (surface != null) player.setSurface(surface);
+        // v3.6: some streams only report their real size after prepare (or
+        // change it mid-stream) — keep the layout fitted when that happens.
+        player.setOnVideoSizeChangedListener((mp, w, h) -> {
+            if (w > 0 && h > 0 && (w != videoW || h != videoH)) {
+                videoW = w; videoH = h;
+                updateAspect();
+                updatePipParams();
+            }
+        });
         player.setAudioAttributes(new android.media.AudioAttributes.Builder()
                 .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                 .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MOVIE).build());
@@ -730,43 +769,113 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     }
 
     private void aspectMenu() {
-        String[] labels = {"Fit to screen", "Fill (crop)", "16:9", "4:3", "Original size"};
+        // v3.6: "Stretch" added (the brief's five modes + the existing
+        // "Original size"). Labels and mode constants are parallel arrays —
+        // the menu order is NOT the constant order.
+        String[] labels = {"Fit to screen", "Fill (crop)", "Stretch", "16:9", "4:3", "Original size"};
+        final int[] modes = {ASPECT_FIT, ASPECT_FILL, ASPECT_STRETCH, ASPECT_16_9, ASPECT_4_3, ASPECT_ORIGINAL};
         List<MediaSheet.Option> opts = new ArrayList<>();
         for (int i = 0; i < labels.length; i++) {
-            final int w = i;
-            opts.add(new MediaSheet.Option(R.drawable.ic_crop, labels[i], aspectMode == i,
-                    () -> { aspectMode = w; updateAspect(); }));
+            final int mode = modes[i];
+            opts.add(new MediaSheet.Option(R.drawable.ic_crop, labels[i], aspectMode == mode,
+                    () -> { aspectMode = mode; updateAspect(); }));
         }
         MediaSheet.showOptions(this, "Aspect ratio", R.drawable.ic_crop, opts);
     }
 
+    /** Largest rect of aspect {@code ar} (w/h) that fits inside availW×availH. */
+    private static int[] fitRect(int availW, int availH, double ar) {
+        int w = availW, h = (int) Math.round(availW / ar);
+        if (h > availH) { h = availH; w = (int) Math.round(availH * ar); }
+        return new int[]{Math.max(1, w), Math.max(1, h)};
+    }
+
+    private boolean aspectPostPending = false;
+
+    /**
+     * v3.6 sizing rewrite — the TextureView itself is SIZED to the display
+     * rect (centred in the root); it is no longer a permanent full-window
+     * view with the picture squeezed by a centre-pivot matrix.
+     *
+     * Why the old way failed (v3.0–v3.5): the view always filled the whole
+     * window and updateAspect() only set a Matrix computed from
+     * getVideoWidth()/getVideoHeight() captured once at onPrepared. Those
+     * are the stream's CODED dimensions — for files whose display ratio
+     * differs (rotation / sample-aspect metadata, common in phone and
+     * WhatsApp videos) the matrix shrank the picture into a small centred
+     * band, the size was never refreshed (no onVideoSizeChanged), and
+     * rotation only re-ran the same stale numbers through the surface-size
+     * callback. Now the layout rect is recomputed from the player's
+     * reported size at every relevant event (prepared, video-size-changed,
+     * surface-size-changed, configuration-changed) against the CURRENT
+     * root (screen) dimensions:
+     *
+     *   FIT (default): rect = largest rect of the video's own ratio inside
+     *     the screen — natural format, as large as possible, letterbox /
+     *     pillarbox on the black root, zero distortion, zero crop.
+     *   16:9 / 4:3: same fit math with the forced ratio.
+     *   ORIGINAL: rect = the video's pixel size, centred (overflow, if
+     *     any, is cropped symmetrically by the root).
+     *   FILL: view = whole screen; a cover matrix scales the picture to
+     *     cover it, ratio preserved, overflow cropped.
+     *   STRETCH: view = whole screen, identity matrix — the picture fills
+     *     the screen exactly, ratio ignored.
+     * FIT / 16:9 / 4:3 / ORIGINAL use the identity matrix (the view's size
+     * does the work), so switching away from Fill always resets the
+     * transform. Re-applying the same rect is a no-op (guarded), which is
+     * what keeps the surface-size callback from looping.
+     */
     private void updateAspect() {
-        if (texture == null || videoW <= 0 || videoH <= 0) return;
-        int W = texture.getWidth(), H = texture.getHeight();
-        if (W == 0 || H == 0) return;
-        double viewAR = (double) W / H;
-        double targetAR;
-        switch (aspectMode) {
-            case ASPECT_16_9: targetAR = 16.0 / 9.0; break;
-            case ASPECT_4_3: targetAR = 4.0 / 3.0; break;
-            case ASPECT_ORIGINAL: {
-                Matrix m = new Matrix();
-                m.setScale((float) videoW / W, (float) videoH / H, W / 2f, H / 2f);
-                texture.setTransform(m);
-                return;
+        if (texture == null || root == null || videoW <= 0 || videoH <= 0) return;
+        int availW = root.getWidth(), availH = root.getHeight();
+        if (availW <= 0 || availH <= 0) {
+            // Not laid out yet (e.g. onPrepared beat the first layout pass):
+            // retry once after layout instead of dropping the sizing.
+            if (!aspectPostPending) {
+                aspectPostPending = true;
+                texture.post(() -> { aspectPostPending = false; updateAspect(); });
             }
-            default: targetAR = (double) videoW / videoH;
+            return;
         }
-        double sx, sy;
-        if (aspectMode == ASPECT_FILL) {
-            if (targetAR > viewAR) { sx = targetAR / viewAR; sy = 1; }
-            else { sx = 1; sy = viewAR / targetAR; }
-        } else {
-            if (targetAR > viewAR) { sx = 1; sy = viewAR / targetAR; }
-            else { sx = targetAR / viewAR; sy = 1; }
+        double videoAR = (double) videoW / videoH;
+        int dispW, dispH;
+        switch (aspectMode) {
+            case ASPECT_FILL:
+            case ASPECT_STRETCH:
+                dispW = availW; dispH = availH;
+                break;
+            case ASPECT_16_9: {
+                int[] r = fitRect(availW, availH, 16.0 / 9.0);
+                dispW = r[0]; dispH = r[1];
+                break;
+            }
+            case ASPECT_4_3: {
+                int[] r = fitRect(availW, availH, 4.0 / 3.0);
+                dispW = r[0]; dispH = r[1];
+                break;
+            }
+            case ASPECT_ORIGINAL:
+                dispW = videoW; dispH = videoH;
+                break;
+            default: { // ASPECT_FIT — the video's own natural ratio
+                int[] r = fitRect(availW, availH, videoAR);
+                dispW = r[0]; dispH = r[1];
+                break;
+            }
+        }
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) texture.getLayoutParams();
+        if (lp.width != dispW || lp.height != dispH || lp.gravity != Gravity.CENTER) {
+            lp.width = dispW;
+            lp.height = dispH;
+            lp.gravity = Gravity.CENTER;
+            texture.setLayoutParams(lp);
         }
         Matrix m = new Matrix();
-        m.setScale((float) sx, (float) sy, W / 2f, H / 2f);
+        if (aspectMode == ASPECT_FILL) {
+            double viewAR = (double) availW / availH;
+            if (videoAR > viewAR) m.setScale((float) (videoAR / viewAR), 1f, availW / 2f, availH / 2f);
+            else m.setScale(1f, (float) (viewAR / videoAR), availW / 2f, availH / 2f);
+        }
         texture.setTransform(m);
     }
 

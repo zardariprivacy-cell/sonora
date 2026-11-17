@@ -74,17 +74,17 @@ public class Ui {
     /**
      * The shared layered 3D background: gradient border layer + top-lit fill.
      * Returns a NEW drawable each call (drawables are not shared between views).
+     *
+     * v3.6: this theme-card variant now has its OWN body (it used to delegate
+     * to the tint overload below). Its output is byte-identical to v3.5:
+     * border = brand pair at alpha 185/120 (dark) or 165/110 (light);
+     * fill = top-lit theme card (dark: lighten(#2C2247, .16) → #211A35;
+     * light: #FFFFFF → #EAE3F8). App-wide cards keep this fill because their
+     * content uses Theme.TEXT (white on dark cards, near-black on light
+     * cards) — readable in both themes.
      */
     public static Drawable card3d(int radiusDp) {
-        return card3d(radiusDp, new int[]{Theme.PRIMARY, Theme.ACCENT});
-    }
-
-    /**
-     * Same layered 3D card, but the border gradient is taken from a colour
-     * pair (e.g. {@link #gradientFor(int)}) so each box can carry its own
-     * harmonious tint — used by the video player's bottom options bar (v3.5).
-     */
-    public static Drawable card3d(int radiusDp, int[] grad) {
+        int[] grad = {Theme.PRIMARY, Theme.ACCENT};
         GradientDrawable border = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[]{withAlpha(grad[0], Theme.LIGHT ? 165 : 185),
                         withAlpha(grad[1], Theme.LIGHT ? 110 : 120)});
@@ -100,27 +100,69 @@ public class Ui {
     }
 
     /**
-     * Circular variant of the layered 3D treatment — gradient rim + top-lit
-     * fill — for round chips (video player transport/top buttons, v3.5).
+     * Colourful 3D box carrying its own gradient pair — the fill IS the pair
+     * at full saturation, like {@link #iconBadge}'s proven vivid badges.
+     *
+     * v3.6 CONTRAST FIX. In v3.5 this overload only tinted the 2dp border
+     * ring; the fill was the pale theme gradient (light theme: #FFFFFF →
+     * #EAE3F8; dark theme: #4A3F6E-ish → #211A35). The video player's boxes
+     * draw WHITE glyphs + labels, so under the light theme they rendered as
+     * near-white boxes with invisible white content ("kuch nazar bhi nahi aa
+     * raha"). Now: edge = the pair darkened to 62% (the 3D rim), fill = the
+     * pair itself at full alpha/saturation, plus a thin top sheen (white
+     * alpha 64 → 0) that keeps the lit-from-top feel without washing the
+     * colour out. Any content on this surface must be WHITE — in both
+     * themes — and now reads at a glance.
+     */
+    public static Drawable card3d(int radiusDp, int[] grad) {
+        GradientDrawable edge = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{darken(grad[0], 0.62f), darken(grad[1], 0.62f)});
+        edge.setCornerRadius(dp(radiusDp));
+        GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.TL_BR, grad);
+        fill.setCornerRadius(dp(Math.max(4, radiusDp - 2)));
+        GradientDrawable sheen = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{withAlpha(0xFFFFFFFF, 64), withAlpha(0xFFFFFFFF, 0)});
+        sheen.setCornerRadius(dp(Math.max(4, radiusDp - 2)));
+        LayerDrawable ld = new LayerDrawable(new Drawable[]{edge, fill, sheen});
+        ld.setLayerInset(1, dp(2), dp(2), dp(2), dp(2));
+        ld.setLayerInset(2, dp(2), dp(2), dp(2), dp(2));
+        return ld;
+    }
+
+    /**
+     * Circular variant of the colourful 3D treatment for round chips whose
+     * glyph is WHITE (video player transport/top buttons). Same v3.6
+     * contrast fix as {@link #card3d(int, int[])}: v3.5 filled the disc with
+     * the pale theme gradient (#FFFFFF → #EAE3F8 in the light theme), so the
+     * white glyphs vanished; now rim = pair darkened to 62%, fill = the pair
+     * at full saturation, plus the top sheen.
      */
     public static Drawable circle3d(int[] grad) {
-        GradientDrawable border = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{withAlpha(grad[0], Theme.LIGHT ? 180 : 200),
-                        withAlpha(grad[1], Theme.LIGHT ? 130 : 150)});
-        border.setShape(GradientDrawable.OVAL);
-        int top = Theme.LIGHT ? Theme.CARD : lighten(Theme.ELEVATED, 0.16f);
-        int bottom = Theme.LIGHT ? Theme.ELEVATED : Theme.CARD;
-        GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{top, bottom});
+        GradientDrawable edge = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{darken(grad[0], 0.62f), darken(grad[1], 0.62f)});
+        edge.setShape(GradientDrawable.OVAL);
+        GradientDrawable fill = new GradientDrawable(GradientDrawable.Orientation.TL_BR, grad);
         fill.setShape(GradientDrawable.OVAL);
-        LayerDrawable ld = new LayerDrawable(new Drawable[]{border, fill});
+        GradientDrawable sheen = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{withAlpha(0xFFFFFFFF, 64), withAlpha(0xFFFFFFFF, 0)});
+        sheen.setShape(GradientDrawable.OVAL);
+        LayerDrawable ld = new LayerDrawable(new Drawable[]{edge, fill, sheen});
         ld.setLayerInset(1, dp(2), dp(2), dp(2), dp(2));
+        ld.setLayerInset(2, dp(2), dp(2), dp(2), dp(2));
         return ld;
     }
 
     /** Big centered-popup variant of the 3D card (MediaSheet / Dialogs). */
     public static Drawable dialogCardBg() {
         return card3d(26);
+    }
+
+    /** Scale a colour's RGB channels by {@code f} (0..1) toward black. */
+    public static int darken(int color, float f) {
+        return Color.rgb(
+                Math.round(Color.red(color) * f),
+                Math.round(Color.green(color) * f),
+                Math.round(Color.blue(color) * f));
     }
 
     /** Mix a colour toward white by {@code f} (0..1). */

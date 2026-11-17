@@ -185,3 +185,68 @@ test, as with every Sonora build).
   prev/next, PiP and Lock appear as round 3D chips and still work;
   (g) the bar still auto-hides after ~3.5 s and never covers the seekbar;
   (h) double-tap seek and brightness/volume swipes unchanged.
+
+## v3.6 (versionCode 16) — verification status
+
+Compile/static-verified only — NOT device-tested (no emulator/KVM in the
+build environment; the user's install on his Infinix Hot 40 is the device
+test, as with every Sonora build).
+
+- Build: `build-v36.sh` (derived from build-v35.sh; same manual pipeline,
+  same `${applicationId}` sed-substitution + assert, same AdMob units),
+  versionCode 16 / versionName 3.6. Build green.
+- Delivery file verified at `~/workspace/your_files/sonora/Sonora.apk`
+  (the exact file that ships, not just the build output): 5,514,534 bytes,
+  MD5 `48943a8fb850f8eac5de8c102eaa41fa`; aapt2 badging
+  `com.nawazishali.sonora` vc16 / 3.6; `aapt2 dump xmltree` on the merged
+  manifest: zero literal `${applicationId}`; provider authorities
+  `com.nawazishali.sonora.mobileadsinitprovider`,
+  `com.nawazishali.sonora.androidx-startup`,
+  `com.nawazishali.sonora.fileprovider`; apksigner cert SHA-256
+  `066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050`
+  (unchanged — installs over v3.5).
+- What changed: (1) `VaultActivity` presentation only — gate card +
+  tinted PIN box + gradient buttons, header card with counts, big
+  gradient Import box, vault-specific colourful rows, dashed empty-state
+  card, Change PIN field styling. `Vault.java` untouched; every PIN /
+  import / export / playback handler is byte-identical (verified by
+  reading the diff). (2) `Ui` — `card3d(radius, int[])` and
+  `circle3d(int[])` fills are now the pair gradient at full saturation
+  (rim = pair darkened to 62%, top sheen white alpha 64 → 0);
+  `card3d(radius)` decoupled with output identical to v3.5, so all
+  app-wide cards are unchanged. (3) `VideoPlayerActivity` — layout-based
+  aspect sizing (see FEATURES.md for the per-mode math), a new Stretch
+  mode, an `OnVideoSizeChanged` listener, rotation re-fit, the touch
+  listener moved to the root with texture-space translation, and the
+  Repeat ON label treatment. (4) `SettingsTab` — About version string
+  3.4 → 3.6.
+- Device checklist for the user's v3.6 install:
+  (a) **Player contrast first:** open any video — the six bottom boxes
+  and the round chips (prev/next, −10s/+10s, PiP, Lock) must be vivid
+  saturated colours with clearly readable white icons/labels, in BOTH
+  the dark and the light app theme (v3.5 washed out under light).
+  (b) **Fit:** a landscape video in portrait fills the width at its own
+  ratio (black bars top/bottom, no squashing, no small band); rotate
+  the phone and it re-fits to fill the landscape screen at the same
+  ratio; a portrait video likewise stays portrait-shaped and large.
+  (c) **Aspect menu:** Fit / Fill (crop) / Stretch / 16:9 / 4:3 /
+  Original each resize immediately without restarting the video; Fill
+  covers the whole screen with the ratio intact; Stretch fills exactly.
+  (d) **Gestures:** double-tap left/right thirds of the VIDEO area seek
+  ∓10s, centre toggles play; swipes on the left/right halves of the
+  video adjust brightness/volume; single taps on the black bars still
+  show/hide the controls.
+  (e) **Repeat:** ON shows the bright gradient box with a bold
+  "Repeat ✓" label; OFF returns to the violet→pink box.
+  (f) **Vault gate:** centered 3D card, gradient shield badge, PIN
+  field(s) in the tinted inner box; wrong PIN still toasts "Wrong PIN";
+  device-lock unlock still works; create-PIN flow unchanged.
+  (g) **Vault contents:** header card shows the real file count and
+  total encrypted size; Import is the big gradient box; Change PIN
+  opens the (already 3D) dialog with the new field style and works;
+  every row is a colourful card whose colour matches its type; tap
+  plays, long-press opens Play / Export / Delete; empty vault shows
+  the dashed card.
+  (h) Regression sweep: Music tab opens (v3.4 crash fix), Home/Settings/
+  Folders cards look exactly as in v3.5 (the theme card was decoupled,
+  not recoloured), seekbar/timeline still track correctly.

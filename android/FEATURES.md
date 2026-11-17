@@ -360,3 +360,94 @@ sheet actions) is preserved with the same ad unit IDs.
   (SHA-256 066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050),
   so it installs over v3.4. Compile/static-verified only — NOT
   device-tested (see TESTING-REPORT.md).
+
+## v3.6 (versionCode 16, Nov 17 2026) — Vault 3D treatment + player contrast fix + aspect-fit sizing
+
+- **Private Vault — full colourful 3D treatment (`VaultActivity`,
+  presentation only; `Vault.java`, the PIN verification flow and all
+  import/export/file logic are untouched).**
+  - **Gate (setup / unlock):** the whole panel is now a centered 3D card
+    (the shared layered `cardBg` treatment + elevation) with a gradient
+    shield badge on top (`Ui.iconBadge`), the PIN field(s) inside a
+    tinted inner box, and each field itself restyled as a tinted inset
+    box. "Create PIN & open vault" / "Unlock" are full-width gradient 3D
+    buttons; "Use device lock (fingerprint / PIN)" is a full-width
+    saturated 3D box (indigo→cyan). All handlers, validation messages and
+    the device-credential intent are byte-identical to v3.5. Honest note:
+    the vault has **no custom number pad** — PIN entry is the system
+    password field, whose dots are what sits in the tinted box; no keypad
+    was invented, because that would change the PIN entry flow.
+  - **Contents:** the header is a 3D card with the gradient shield badge,
+    the title and a live counts/usage line ("N files • X encrypted on
+    this device", computed from the vault cursor). **Import media** is a
+    big gradient 3D box; **Change PIN** a saturated indigo→cyan 3D box
+    beside it. Every item row is now a vault-specific colourful 3D card
+    (saturated gradient fill from the badge family — blue = video,
+    violet = audio, pink = photo, indigo→cyan = file) with a matching
+    gradient type badge, white title, and a "size • type • Encrypted"
+    line with a small lock glyph. Click still plays, long-press still
+    opens the vault's own menu, and rows still have no ⋮ (v3.4). The
+    empty state sits in a dashed-border card with a gradient badge.
+  - **Change PIN dialog:** its card was already the 3D dialog card
+    (`Dialogs` uses `Ui.dialogCardBg`); its fields now carry the same
+    tinted inset-box style via the shared `pinField()` helper. Flow and
+    validation unchanged.
+  - Settings → About now says "Version 3.6" (the string had lagged at
+    3.4 through the v3.5 build).
+
+- **URGENT contrast fix — the v3.5 player boxes/chips were invisible.**
+  The user's v3.5 screenshot showed the six bottom-bar boxes and the
+  circular chips as near-white / pale-lavender boxes with white icons and
+  labels ("kuch nazar bhi nahi aa raha"). Root cause, in code: the v3.5
+  `Ui.card3d(radius, int[])` and `Ui.circle3d(int[])` used the tint pair
+  ONLY in the 2dp border ring (at alpha 185/120 dark, 165/110 light);
+  the fill was the pale theme gradient — **light theme: #FFFFFF →
+  #EAE3F8**; dark theme: lighten(#2C2247, .16) ≈ #4A3F6E → #211A35 — and
+  the player draws white glyphs + labels, so under the light theme the
+  content vanished. **Fix:** in both helpers the fill is now the pair
+  gradient itself at full saturation (TL_BR, full alpha — the same
+  values as the proven `Ui.iconBadge` fills, e.g. #9B6BFF→#C084FC,
+  #F15BB5→#9B6BFF, #5B8CFF→#9B6BFF, #00C9A7→#5B8CFF), the rim is the
+  pair darkened to 62%, and a thin top sheen (white alpha 64 → 0) keeps
+  the lit-from-top 3D feel without washing the colour out. Elevation and
+  PressFx are unchanged. `Ui.card3d(radius)` (the app-wide theme card)
+  was **decoupled** from the tint overload and reproduces its v3.5
+  output exactly, so no other screen changed. Audit: the tint overload
+  and `circle3d` had exactly one consumer — `VideoPlayerActivity` (six
+  tool boxes, Repeat OFF state, prev/next and ±10s chips, PiP/Lock
+  chips) — plus the new v3.6 vault rows, which follow the same rule:
+  white content only on deep/saturated fills. **Repeat ON** is now
+  distinguished by the brighter Primary→Accent gradient fill PLUS a
+  bold "Repeat ✓" label (OFF = the saturated violet→pink tint box).
+
+- **Video sizing — "jesa jis format main ho, usy wesy rehne do."** The
+  TextureView is now SIZED to the video's display rect instead of being
+  a permanent full-window view with the picture squeezed by a matrix.
+  Old mechanism (v3.0–v3.5): `updateAspect()` only set a centre-pivot
+  `setTransform` computed from `getVideoWidth()/getVideoHeight()`
+  captured once at `onPrepared` — the stream's coded dimensions; for
+  files whose display ratio differs (rotation / sample-aspect metadata,
+  common in phone and WhatsApp videos) the picture shrank into a small
+  centred band, the size was never refreshed, and rotation re-ran the
+  same stale numbers. New math, recomputed on prepared /
+  onVideoSizeChanged / surface-size-changed / configuration-changed
+  against the current screen size: **Fit (default)** = largest rect of
+  the video's own ratio inside the screen (letterbox/pillarbox on the
+  black root, zero distortion, zero crop); **16:9 / 4:3** = same fit
+  math with the forced ratio; **Original** = the video's pixel size,
+  centred; **Fill** = full-screen view + cover matrix (ratio preserved,
+  overflow cropped); **Stretch (new)** = full-screen view, identity
+  matrix, ratio ignored. Mode switches resize immediately without
+  restarting playback; the mode persists for the session as before. The
+  touch listener moved from the TextureView to the root with coordinates
+  translated into texture space, so taps/swipes on the letterbox bars
+  still work and the double-tap thirds + brightness/volume halves track
+  the actual video area; buttons and the seek bar still consume their
+  own touches first. PiP, auto-hide chrome, the v3.4 menus and the v3.5
+  bar are untouched.
+- Delivery APK verified at `~/workspace/your_files/sonora/Sonora.apk`:
+  5,514,534 bytes, MD5 48943a8fb850f8eac5de8c102eaa41fa, vc16 / 3.6, zero
+  literal `${applicationId}` in the merged manifest, signing cert unchanged
+  (SHA-256 066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050),
+  so it installs over v3.5. Compile/static-verified only — NOT
+  device-tested (see TESTING-REPORT.md).

@@ -6,6 +6,8 @@ import android.app.PendingIntent;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +18,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -56,6 +59,14 @@ public class VaultActivity extends Activity {
     }
 
     // ---------------- gate (setup / unlock) ----------------
+    // v3.6: the gate is now a centered colourful 3D card — gradient shield
+    // badge on top, the PIN field(s) inside a tinted inner box, and full-
+    // width gradient 3D buttons. Presentation only: every handler below is
+    // byte-identical to v3.5 (same Vault.setPin / Vault.verifyPin calls,
+    // same toasts, same device-credential intent). Note the vault has no
+    // custom number pad — PIN entry is the system password field (its dots
+    // are what sits in the tinted box); no keypad was invented because that
+    // would change the PIN entry flow.
     private void showGate() {
         unlocked = false;
         clearPlayCache();
@@ -66,29 +77,35 @@ public class VaultActivity extends Activity {
         bar.addView(back);
         content.addView(bar);
 
-        content.addView(Ui.spacer(this, 10));
-        LinearLayout center = new LinearLayout(this);
-        center.setOrientation(LinearLayout.VERTICAL);
-        center.setGravity(Gravity.CENTER_HORIZONTAL);
-        center.addView(Ui.icon(this, R.drawable.ic_shield, 54, Theme.SECONDARY));
-        TextView t = Ui.text(this, "Private Vault", 21, Theme.TEXT, true);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_HORIZONTAL);
+        card.setBackground(Ui.cardBg());
+        card.setElevation(Ui.dp(6));
+        card.setPadding(Ui.dp(22), Ui.dp(26), Ui.dp(22), Ui.dp(24));
+        LinearLayout.LayoutParams cardLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        cardLp.setMargins(0, Ui.dp(14), 0, 0);
+        card.setLayoutParams(cardLp);
+        card.addView(Ui.iconBadge(this, R.drawable.ic_shield, 0, 68, 34));
+        TextView t = Ui.text(this, "Private Vault", 22, Theme.TEXT, true);
         t.setGravity(Gravity.CENTER);
-        t.setPadding(0, Ui.dp(10), 0, 0);
-        center.addView(t);
-        content.addView(center);
+        t.setPadding(0, Ui.dp(12), 0, 0);
+        card.addView(t);
+        content.addView(card);
 
         if (!Vault.hasPin(this)) {
             // v3.3: was Ui.sub() (single line) — the text was cut off with "…".
             TextView m = Ui.bodyWrap(this, "Create a PIN to protect your private media. Files are encrypted with AES-256 on this device.");
             m.setGravity(Gravity.CENTER);
             m.setPadding(0, Ui.dp(6), 0, Ui.dp(2));
-            content.addView(m);
+            card.addView(m);
+            LinearLayout pinBox = pinBox();
             final EditText pin1 = pinField("New PIN (4+ digits)");
             final EditText pin2 = pinField("Confirm PIN");
-            content.addView(pin1); content.addView(pin2);
-            LinearLayout btn = Ui.chip(this, 0, "Create PIN & open vault");
-            btn.setBackground(Ui.gradientBg(22));
-            btn.setGravity(Gravity.CENTER);
+            pinBox.addView(pin1); pinBox.addView(pin2);
+            card.addView(pinBox);
+            LinearLayout btn = gateButton(0, "Create PIN & open vault", Ui.gradientBg(20));
             btn.setOnClickListener(v -> {
                 String a = pin1.getText().toString(), b = pin2.getText().toString();
                 if (a.length() < 4) { toast("PIN must be at least 4 characters"); return; }
@@ -99,23 +116,27 @@ public class VaultActivity extends Activity {
                     showVault();
                 } catch (Exception e) { toast("Could not create PIN"); }
             });
-            content.addView(btn);
+            card.addView(btn);
         } else {
+            TextView m = Ui.bodyWrap(this, "Enter your PIN to unlock your encrypted media.");
+            m.setGravity(Gravity.CENTER);
+            m.setPadding(0, Ui.dp(6), 0, Ui.dp(2));
+            card.addView(m);
+            LinearLayout pinBox = pinBox();
             final EditText pin = pinField("Enter your PIN");
-            content.addView(pin);
-            LinearLayout btn = Ui.chip(this, R.drawable.ic_lock, "Unlock");
-            btn.setBackground(Ui.gradientBg(22));
-            btn.setGravity(Gravity.CENTER);
+            pinBox.addView(pin);
+            card.addView(pinBox);
+            LinearLayout btn = gateButton(R.drawable.ic_lock, "Unlock", Ui.gradientBg(20));
             btn.setOnClickListener(v -> {
                 if (Vault.verifyPin(this, pin.getText().toString())) {
                     unlocked = true;
                     showVault();
                 } else toast("Wrong PIN");
             });
-            content.addView(btn);
+            card.addView(btn);
 
-            LinearLayout device = Ui.chip(this, R.drawable.ic_key, "Use device lock (fingerprint / PIN)");
-            device.setGravity(Gravity.CENTER);
+            LinearLayout device = gateButton(R.drawable.ic_key, "Use device lock (fingerprint / PIN)",
+                    Ui.card3d(20, Ui.gradientFor(5)));
             device.setOnClickListener(v -> {
                 KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
                 if (km != null && km.isKeyguardSecure()) {
@@ -125,7 +146,47 @@ public class VaultActivity extends Activity {
                 }
                 toast("No secure device lock is set up on this phone");
             });
-            content.addView(device);
+            card.addView(device);
+        }
+    }
+
+    /** Tinted inner box that holds the gate's PIN field(s) (v3.6). */
+    private LinearLayout pinBox() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Theme.LIGHT ? Theme.ELEVATED : Ui.withAlpha(Theme.ELEVATED, 235));
+        bg.setCornerRadius(Ui.dp(18));
+        bg.setStroke(Ui.dp(1), Theme.BORDER);
+        box.setBackground(bg);
+        box.setPadding(Ui.dp(16), Ui.dp(2), Ui.dp(16), Ui.dp(16));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, Ui.dp(16), 0, 0);
+        box.setLayoutParams(lp);
+        return box;
+    }
+
+    /** Full-width gradient 3D button for the gate (white icon + label). */
+    private LinearLayout gateButton(int iconRes, String label, Drawable bg) {
+        LinearLayout b = Ui.chip(this, iconRes, label);
+        b.setBackground(bg);
+        b.setElevation(Ui.dp(4));
+        b.setPadding(Ui.dp(16), Ui.dp(13), Ui.dp(16), Ui.dp(13));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, Ui.dp(14), 0, 0);
+        b.setLayoutParams(lp);
+        forceWhite(b);
+        return b;
+    }
+
+    /** Force a chip's icon + label white (saturated fills always carry white). */
+    private void forceWhite(LinearLayout chip) {
+        for (int i = 0; i < chip.getChildCount(); i++) {
+            View ch = chip.getChildAt(i);
+            if (ch instanceof ImageView) ((ImageView) ch).setColorFilter(0xFFFFFFFF);
+            else if (ch instanceof TextView) ((TextView) ch).setTextColor(0xFFFFFFFF);
         }
     }
 
@@ -136,6 +197,16 @@ public class VaultActivity extends Activity {
         e.setSingleLine(true);
         e.setTextColor(Theme.TEXT);
         e.setHintTextColor(Theme.TEXT2);
+        // v3.6: the field itself is a tinted inset box (deep base in the dark
+        // theme, white on lavender in the light theme, thin border). Input
+        // type, hint and colours are unchanged; also restyles the Change
+        // PIN dialog's fields, which share this helper.
+        e.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Theme.LIGHT ? Theme.CARD : Theme.BG);
+        bg.setCornerRadius(Ui.dp(14));
+        bg.setStroke(Ui.dp(1), Theme.BORDER);
+        e.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, Ui.dp(12), 0, 0);
@@ -144,26 +215,82 @@ public class VaultActivity extends Activity {
     }
 
     // ---------------- vault content ----------------
+    /** One vault row's data, collected up front so the header can show counts. */
+    private static class VaultEntry {
+        long id; String name; String mime; long size; String encFile; boolean video;
+    }
+
+    // v3.6: header is a 3D card (gradient shield badge + live counts/usage),
+    // Import is a big gradient 3D box beside a tinted Change PIN box, every
+    // item row is a colourful saturated 3D card with a gradient type badge,
+    // and the empty state sits in a dashed card. Presentation only — the
+    // import intent, changePin() and the rows' click (play) / long-press
+    // (vault menu) targets are exactly as before, and vault rows still have
+    // no ⋮ (v3.4).
     private void showVault() {
         content.removeAllViews();
         LinearLayout bar = new LinearLayout(this);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
         TextView back = Ui.text(this, "‹", 26, Theme.TEXT, true);
-        back.setPadding(0, 0, Ui.dp(10), 0);
         back.setOnClickListener(v -> finish());
         bar.addView(back);
-        TextView h = Ui.text(this, "Private Vault", 19, Theme.TEXT, true);
-        h.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        bar.addView(h);
-        bar.addView(Ui.icon(this, R.drawable.ic_lock, 22, Theme.ACCENT));
         content.addView(bar);
-        content.addView(Ui.bodyWrap(this, "Files here are encrypted and hidden from the normal library."));
+
+        List<VaultEntry> items = new ArrayList<>();
+        long totalBytes = 0;
+        Cursor c = Db.get(this).vaultCursor();
+        while (c.moveToNext()) {
+            VaultEntry e = new VaultEntry();
+            e.id = c.getLong(0);
+            e.name = c.getString(1);
+            e.mime = c.getString(2) == null ? "" : c.getString(2);
+            e.size = c.getLong(3);
+            e.encFile = c.getString(4);
+            e.video = c.getInt(5) == 1;
+            items.add(e);
+            totalBytes += e.size;
+        }
+        c.close();
+
+        // Header 3D card: gradient badge + title + counts/usage line.
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setBackground(Ui.cardBg());
+        header.setElevation(Ui.dp(4));
+        header.setPadding(Ui.dp(18), Ui.dp(16), Ui.dp(18), Ui.dp(16));
+        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        hlp.setMargins(0, Ui.dp(10), 0, 0);
+        header.setLayoutParams(hlp);
+        LinearLayout hrow = new LinearLayout(this);
+        hrow.setOrientation(LinearLayout.HORIZONTAL);
+        hrow.setGravity(Gravity.CENTER_VERTICAL);
+        hrow.addView(Ui.iconBadge(this, R.drawable.ic_shield, 0, 54, 29));
+        LinearLayout htexts = new LinearLayout(this);
+        htexts.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams htlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        htlp.setMargins(Ui.dp(14), 0, 0, 0);
+        htexts.setLayoutParams(htlp);
+        htexts.addView(Ui.text(this, "Private Vault", 19, Theme.TEXT, true));
+        htexts.addView(Ui.bodyWrap(this, items.isEmpty()
+                ? "No files yet"
+                : items.size() + (items.size() == 1 ? " file" : " files") + "  •  "
+                        + Ui.fmtSize(totalBytes) + " encrypted on this device"));
+        hrow.addView(htexts);
+        header.addView(hrow);
+        TextView desc = Ui.bodyWrap(this, "Files here are encrypted and hidden from the normal library.");
+        desc.setPadding(0, Ui.dp(10), 0, 0);
+        header.addView(desc);
+        content.addView(header);
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setPadding(0, Ui.dp(12), 0, Ui.dp(4));
+        actions.setPadding(0, Ui.dp(14), 0, Ui.dp(14));
         LinearLayout imp = Ui.chip(this, R.drawable.ic_download, "Import media");
+        imp.setBackground(Ui.gradientBg(18));
+        imp.setElevation(Ui.dp(4));
+        imp.setPadding(Ui.dp(16), Ui.dp(12), Ui.dp(16), Ui.dp(12));
+        imp.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        forceWhite(imp);
         imp.setOnClickListener(v -> {
             Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
             i.setType("*/*");
@@ -175,40 +302,98 @@ public class VaultActivity extends Activity {
         });
         actions.addView(imp);
         LinearLayout chg = Ui.chip(this, R.drawable.ic_key, "Change PIN");
-        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        chg.setBackground(Ui.card3d(18, Ui.gradientFor(5)));
+        chg.setElevation(Ui.dp(4));
+        chg.setPadding(Ui.dp(16), Ui.dp(12), Ui.dp(16), Ui.dp(12));
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         clp.setMargins(Ui.dp(8), 0, 0, 0);
         chg.setLayoutParams(clp);
+        forceWhite(chg);
         chg.setOnClickListener(v -> changePin());
         actions.addView(chg);
         content.addView(actions);
 
-        Cursor c = Db.get(this).vaultCursor();
-        if (c.getCount() == 0) {
-            content.addView(Ui.spacer(this, 16));
-            content.addView(Ui.sub(this, "Your vault is empty. Import songs or videos to keep them private."));
+        if (items.isEmpty()) {
+            LinearLayout empty = new LinearLayout(this);
+            empty.setOrientation(LinearLayout.VERTICAL);
+            empty.setGravity(Gravity.CENTER_HORIZONTAL);
+            empty.setPadding(Ui.dp(22), Ui.dp(24), Ui.dp(22), Ui.dp(24));
+            empty.setBackground(dashedCardBg());
+            empty.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            empty.addView(Ui.iconBadge(this, R.drawable.ic_shield, 3, 52, 28));
+            TextView t = Ui.bodyWrap(this, "Your vault is empty. Import songs or videos to keep them private.");
+            t.setGravity(Gravity.CENTER);
+            t.setPadding(0, Ui.dp(12), 0, 0);
+            empty.addView(t);
+            content.addView(empty);
         }
-        while (c.moveToNext()) {
-            final long id = c.getLong(0);
-            final String name = c.getString(1);
-            final String mime = c.getString(2);
-            final long size = c.getLong(3);
-            final String encFile = c.getString(4);
-            final boolean video = c.getInt(5) == 1;
-            MediaItem it = new MediaItem();
-            it.id = id; it.title = name; it.size = size; it.video = video; it.mime = mime == null ? "" : mime;
-            it.vault = true; // rows get no standard ⋮ sheet (see Rows.mediaRow)
-            content.addView(Rows.mediaRow(this, it,
-                    v -> playVaultItem(id, name, mime, video),
-                    v -> { vaultItemMenu(id, name, mime, encFile, video); return true; }));
-        }
-        c.close();
+        for (VaultEntry e : items) content.addView(vaultRow(e));
+    }
+
+    /** Dashed-border card background for the vault empty state (v3.6). */
+    private Drawable dashedCardBg() {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(Ui.withAlpha(Theme.CARD, Theme.LIGHT ? 255 : 150));
+        g.setCornerRadius(Ui.dp(20));
+        g.setStroke(Ui.dp(1), Theme.BORDER, Ui.dp(7), Ui.dp(5));
+        return g;
+    }
+
+    /**
+     * One vault item as a colourful 3D card (v3.6): saturated gradient fill
+     * from the badge family (blue = video, violet = audio, pink = photo,
+     * indigo-cyan = file), a matching gradient type badge, white title and
+     * a size • type • Encrypted line. Click plays, long-press opens the
+     * vault's own menu — the same targets Rows.mediaRow wired before; no ⋮.
+     */
+    private View vaultRow(final VaultEntry e) {
+        final boolean audio = e.mime.startsWith("audio/");
+        final boolean image = e.mime.startsWith("image/");
+        final int g = e.video ? 2 : audio ? 0 : image ? 1 : 5;
+        final int icon = e.video ? R.drawable.ic_video : audio ? R.drawable.ic_music : R.drawable.ic_files;
+        final String kind = e.video ? "Video" : audio ? "Audio" : image ? "Photo" : "File";
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.dp(12), Ui.dp(10), Ui.dp(12), Ui.dp(10));
+        row.setBackground(Ui.card3d(18, Ui.gradientFor(g)));
+        row.setElevation(Ui.dp(3));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, 0, Ui.dp(10));
+        row.setLayoutParams(lp);
+        row.addView(Ui.iconBadge(this, icon, g, 46, 24));
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tlp.setMargins(Ui.dp(12), 0, Ui.dp(8), 0);
+        texts.setLayoutParams(tlp);
+        TextView title = Ui.text(this, e.name, 14.5f, 0xFFFFFFFF, true);
+        title.setMaxLines(1);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        texts.addView(title);
+        TextView sub = Ui.text(this, Ui.fmtSize(e.size) + "  •  " + kind + "  •  Encrypted",
+                12.5f, Ui.withAlpha(0xFFFFFFFF, 215), false);
+        sub.setMaxLines(1);
+        sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        texts.addView(sub);
+        row.addView(texts);
+        row.addView(Ui.icon(this, R.drawable.ic_lock, 16, Ui.withAlpha(0xFFFFFFFF, 200)));
+        row.setOnClickListener(v -> playVaultItem(e.id, e.name, e.mime, e.video));
+        row.setOnLongClickListener(v -> { vaultItemMenu(e.id, e.name, e.mime, e.encFile, e.video); return true; });
+        PressFx.apply(row);
+        return row;
     }
 
     private void changePin() {
         final EditText oldPin = pinField("Current PIN");
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
+        // v3.6: the dialog card itself was already the 3D dialog card
+        // (Dialogs uses Ui.dialogCardBg); the fields now carry the tinted
+        // inset-box style via pinField(). Flow and validation unchanged.
+        box.setPadding(Ui.dp(2), Ui.dp(4), Ui.dp(2), 0);
         box.addView(oldPin);
         final EditText newPin = pinField("New PIN");
         box.addView(newPin);

@@ -264,7 +264,7 @@ public class SettingsTab extends Tab {
 
     private void aboutDialog() {
         Dialogs.message(act, "Sonora",
-                "Version 3.4\n\nYour Complete Media Experience\n\n"
+                "Version 3.6\n\nYour Complete Media Experience\n\n"
                         + Library.AUDIO.size() + " songs  •  " + Library.VIDEO.size() + " videos on this device\n\n"
                         + "An original Sonora design in premium violet. Offline video & music player — "
                         + "no account, no uploads; your media never leaves your phone.");
