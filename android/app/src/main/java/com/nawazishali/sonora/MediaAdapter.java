@@ -43,16 +43,23 @@ public class MediaAdapter extends BaseAdapter {
         v.setElevation(Ui.dp(3));
         ImageLoader.load(ctx, it, thumb);
         // v3.3 music vibe: mini EQ bars on the currently-playing song's row.
+        // v3.4: decoration is fully guarded — any failure here degrades
+        // silently and must never take down the list bind (or the tab).
         View eq = v.findViewById(R.id.eqbars);
         if (eq != null) {
-            MusicService svc = MusicService.instance;
-            boolean current = !grid && !it.video && svc != null && svc.current() != null
-                    && it.key().equals(svc.current().key());
-            eq.setVisibility(current ? View.VISIBLE : View.GONE);
-            if (current && eq instanceof AnimatedBarsView)
-                ((AnimatedBarsView) eq).setAnimating(svc.isPlaying());
+            try {
+                MusicService svc = MusicService.instance;
+                boolean current = !grid && !it.video && svc != null && svc.current() != null
+                        && it.key().equals(svc.current().key());
+                eq.setVisibility(current ? View.VISIBLE : View.GONE);
+                if (current && eq instanceof AnimatedBarsView)
+                    ((AnimatedBarsView) eq).setAnimating(svc.isPlaying());
+            } catch (Throwable ignored) {
+                try { eq.setVisibility(View.GONE); } catch (Throwable ignored2) { }
+            }
         }
-        boolean isFav = Db.get(ctx).isFavorite(it.key());
+        boolean isFav = false;
+        try { isFav = Db.get(ctx).isFavorite(it.key()); } catch (Throwable ignored) { }
         fav.setVisibility(isFav ? View.VISIBLE : View.GONE);
         if (isFav) fav.setColorFilter(Theme.ACCENT);
         ImageView badge = v.findViewById(R.id.badge);

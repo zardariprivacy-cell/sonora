@@ -14,6 +14,7 @@ public class MediaItem {
     public long size = 0;           // bytes
     public long dateAdded = 0;      // seconds
     public boolean video;
+    public boolean vault;           // v3.4: true for vault rows (no standard ⋮ sheet — uri is null)
     public String bucketId = "";
     public String bucketName = "";
     public String path = "";        // file path when known (may be empty on scoped storage)

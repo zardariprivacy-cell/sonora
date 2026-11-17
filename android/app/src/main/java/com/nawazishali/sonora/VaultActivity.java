@@ -197,6 +197,7 @@ public class VaultActivity extends Activity {
             final boolean video = c.getInt(5) == 1;
             MediaItem it = new MediaItem();
             it.id = id; it.title = name; it.size = size; it.video = video; it.mime = mime == null ? "" : mime;
+            it.vault = true; // rows get no standard ⋮ sheet (see Rows.mediaRow)
             content.addView(Rows.mediaRow(this, it,
                     v -> playVaultItem(id, name, mime, video),
                     v -> { vaultItemMenu(id, name, mime, encFile, video); return true; }));

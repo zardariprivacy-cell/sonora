@@ -19,6 +19,7 @@ public class VideosTab extends Tab {
     private LinearLayout emptyBox;
     private int filter = 0; // 0 all, 1 recent, 2 favorites
     private boolean gridMode = true;
+    private android.widget.ImageView toggleIcon; // v3.4: grid/list toggle icon, kept in sync
     private int sortMode = Library.SORT_DATE;
     private TextView countLabel;
     private final List<TextView> chipViews = new ArrayList<>();
@@ -40,10 +41,16 @@ public class VideosTab extends Tab {
         countLabel.setLayoutParams(clp);
         bar.addView(countLabel);
         bar.addView(iconBtn(R.drawable.ic_sort, v -> sortDialog()));
-        bar.addView(iconBtn(gridMode ? R.drawable.ic_list : R.drawable.ic_grid, v -> {
+        View toggleBtn = iconBtn(gridMode ? R.drawable.ic_list : R.drawable.ic_grid, v -> {
             gridMode = !gridMode;
+            // v3.4 audit fix: keep the toggle icon in sync with the mode
+            // (it used to stay on the build-time icon after toggling).
+            if (toggleIcon != null)
+                toggleIcon.setImageResource(gridMode ? R.drawable.ic_list : R.drawable.ic_grid);
             applyLayout();
-        }));
+        });
+        toggleIcon = (android.widget.ImageView) ((LinearLayout) toggleBtn).getChildAt(0);
+        bar.addView(toggleBtn);
         bar.addView(iconBtn(R.drawable.ic_refresh, v -> { Library.scanAsync(act); toast("Refreshing library…"); }));
         rootL.addView(bar);
 

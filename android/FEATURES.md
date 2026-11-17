@@ -273,3 +273,49 @@ sheet actions) is preserved with the same ad unit IDs.
   installs over v3.2. Size 5,506,342 bytes, MD5
   16717bb9ee36e7fccac09573df215820. Compile/static-verified only — NOT
   device-tested (see TESTING-REPORT.md).
+
+## v3.4 (versionCode 14, Nov 17 2026) — Music-tab crash fix + 3D video option menus + full button audit
+
+- **Music-tab crash FIXED at the root.** v3.3 added an `AnimatedBarsView`
+  (the animated EQ bars) into the shared media-list row layout
+  (`item_media_list.xml`), but the view only declared a `(Context)`
+  constructor. LayoutInflater requires a `(Context, AttributeSet)`
+  constructor, so inflating the FIRST row threw `InflateException` and the
+  app died the moment the Music tab's list bound — every time, for every
+  user. The full constructor chain is now implemented. The same layout is
+  used by Search results, folder contents and the Videos tab list mode, so
+  all four surfaces are fixed by the same change.
+- **Second latent crash removed:** `Ui.gradientFor(int)` used
+  `Math.abs(index)`, which stays negative for `Integer.MIN_VALUE` (a
+  possible song-key hash) and would have indexed the gradient table at −2.
+  Now bitmask-based, safe for every int.
+- **Row binding can never crash on decoration again:** the EQ-bars /
+  favourite-heart decoration in both row binders (`MediaAdapter`,
+  `Rows.mediaRow`) is wrapped so any failure degrades silently — artwork
+  and playback are unaffected.
+- **Video player option menus are 3D boxes now:** Speed, Aspect ratio,
+  Audio track, Subtitles, Repeat and Rotate all open the same centered 3D
+  popup as the media sheet — gradient header naming the group, colourful
+  icon rows, and the current selection filled with the Primary→Accent
+  gradient with a check mark. Repeat and Rotate changed from one-tap
+  toggles into menus (Off / Repeat one; Portrait / Landscape) with the
+  same underlying actions; every other selection performs byte-identically
+  the action it performed before.
+- **Full-app button audit** (every clickable element in every screen traced
+  to its handler in code; table in `~/workspace/sonora-v3/report-v34.md`).
+  Fixes from the audit: the About dialog said "Version 3.3" (now 3.4);
+  vault rows no longer show the standard ⋮ sheet (its rows can't work on
+  an encrypted item — the vault's own Play/Export/Delete menu stays on
+  long-press); the Edit Profile dialog now dismisses before the photo
+  picker opens and after a photo removal instead of floating stale over
+  the rebuilt tab; the Equalizer preset spinner no longer reapplies the
+  already-active preset (which rebuilt the screen); the Videos grid/list
+  toggle icon now swaps with the mode. Everything else traced OK as-is —
+  no dead buttons, no stub handlers, no fake toasts found; every intent
+  target exists in the manifest.
+- Delivery APK verified at `~/workspace/your_files/sonora/Sonora.apk`:
+  5,510,438 bytes, MD5 1157f5dd7031c04af8a2c3673f1475a5, vc14 / 3.4, zero
+  literal `${applicationId}` in the merged manifest, signing cert unchanged
+  (SHA-256 066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050),
+  so it installs over v3.3. Compile/static-verified only — NOT
+  device-tested (see TESTING-REPORT.md).

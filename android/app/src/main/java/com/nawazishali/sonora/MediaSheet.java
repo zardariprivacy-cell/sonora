@@ -144,6 +144,96 @@ public class MediaSheet {
         finish(act, dialog, sheet, header);
     }
 
+    // ---------------------------------------------------------------- options
+    /** One selectable row in an options popup (video-player menus, v3.4). */
+    public static class Option {
+        public final int iconRes;
+        public final String label;
+        public final boolean selected;
+        public final Runnable action;
+
+        public Option(int iconRes, String label, boolean selected, Runnable action) {
+            this.iconRes = iconRes;
+            this.label = label;
+            this.selected = selected;
+            this.action = action;
+        }
+    }
+
+    /**
+     * The options variant of the 3D box (v3.4): same centered popup, layered
+     * card and pop-in animation as the media sheet, but the header names an
+     * option GROUP (gradient band + icon badge + title) and the rows are
+     * choices — the current selection is filled with the Primary→Accent
+     * gradient and carries a check mark. Used by the video player's
+     * Speed / Aspect / Subtitles / Audio / Repeat / Rotate menus so they
+     * match the media sheet exactly. Selecting a row dismisses the popup,
+     * then runs exactly the action the old plain list ran.
+     */
+    public static void showOptions(final Activity act, String title, int headerIconRes,
+                                   List<Option> options) {
+        final Dialog dialog = new Dialog(act);
+        LinearLayout sheet = buildShell(act, dialog);
+
+        LinearLayout header = headerBand(act);
+        header.addView(Ui.iconBadge(act, headerIconRes, title == null ? 0 : title.hashCode(), 58, 30));
+        LinearLayout texts = new LinearLayout(act);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tlp.setMargins(Ui.dp(14), 0, 0, 0);
+        texts.setLayoutParams(tlp);
+        TextView t = Ui.text(act, title, 17, Theme.TEXT, true);
+        t.setMaxLines(1);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        texts.addView(t);
+        texts.addView(Ui.sub(act, "Tap to apply"));
+        header.addView(texts);
+        sheet.addView(header);
+
+        List<View> rows = new ArrayList<>();
+        for (Option o : options) rows.add(optionRow(act, dialog, o));
+        addRows(act, sheet, rows);
+        sheet.addView(Ui.spacer(act, 8));
+
+        finish(act, dialog, sheet, header);
+    }
+
+    private static LinearLayout optionRow(final Activity act, final Dialog dialog, final Option o) {
+        LinearLayout row = new LinearLayout(act);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.dp(18), Ui.dp(11), Ui.dp(18), Ui.dp(11));
+        row.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        if (o.selected) {
+            // Current selection: filled with the Primary→Accent gradient.
+            row.setBackground(Ui.gradientBg(14));
+            LinearLayout badge = new LinearLayout(act);
+            badge.setGravity(Gravity.CENTER);
+            GradientDrawable g = new GradientDrawable();
+            g.setColor(withAlpha(0xFFFFFFFF, 64));
+            g.setCornerRadius(Ui.dp(12));
+            badge.setBackground(g);
+            badge.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(36), Ui.dp(36)));
+            badge.addView(Ui.icon(act, o.iconRes, 19, 0xFFFFFFFF));
+            row.addView(badge);
+        } else {
+            row.addView(Ui.iconBadge(act, o.iconRes, o.label.hashCode(), 36, 19));
+        }
+        TextView t = Ui.text(act, o.label, 15, o.selected ? 0xFFFFFFFF : Theme.TEXT, o.selected);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tlp.setMargins(Ui.dp(14), 0, 0, 0);
+        t.setLayoutParams(tlp);
+        row.addView(t);
+        if (o.selected) row.addView(Ui.icon(act, R.drawable.ic_check, 19, 0xFFFFFFFF));
+        PressFx.apply(row);
+        row.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (o.action != null) o.action.run();
+        });
+        return row;
+    }
+
     private static String countsLine(Library.Folder f) {
         StringBuilder sb = new StringBuilder();
         if (f.audioCount > 0) sb.append(f.audioCount).append(" songs");

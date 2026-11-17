@@ -118,7 +118,10 @@ public class Ui {
     };
 
     public static int[] gradientFor(int index) {
-        return GRADIENTS[Math.abs(index) % GRADIENTS.length];
+        // Bitmask, NOT Math.abs: Math.abs(Integer.MIN_VALUE) is still negative,
+        // which would index GRADIENTS[-2] and throw ArrayIndexOutOfBounds.
+        // (index & 0x7FFFFFFF) is safe for every int, MIN_VALUE included.
+        return GRADIENTS[(index & 0x7FFFFFFF) % GRADIENTS.length];
     }
 
     /** A colourful gradient squircle badge with a white glyph — grid cells, menu rows, folders. */

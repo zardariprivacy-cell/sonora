@@ -70,6 +70,10 @@ public class EqualizerActivity extends Activity {
         spinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(android.widget.AdapterView<?> p, android.view.View v, int pos, long id) {
                 try {
+                    // v3.4 audit fix: the spinner fires once for its initial
+                    // layout selection — if that is already the active preset,
+                    // applying it again would rebuild the screen in a loop.
+                    if (eq.getCurrentPreset() == pos) return;
                     eq.usePreset((short) pos);
                     Db.get(EqualizerActivity.this).setSetting("eq_preset", eq.getPresetName((short) pos));
                     Db.get(EqualizerActivity.this).setSetting("eq_bands", "");

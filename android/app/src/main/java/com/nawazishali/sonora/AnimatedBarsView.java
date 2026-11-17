@@ -3,6 +3,7 @@ package com.nawazishali.sonora;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.util.AttributeSet;
 import android.view.View;
 
 /** Lightweight animated equalizer-bars decoration (splash screen + idle states). */
@@ -13,7 +14,20 @@ public class AnimatedBarsView extends View {
     private boolean animating = true;
 
     public AnimatedBarsView(Context c) {
-        super(c);
+        this(c, null);
+    }
+
+    // Required for XML inflation (item_media_list.xml declares this view):
+    // LayoutInflater only looks up the (Context, AttributeSet) constructor —
+    // without it, inflating a media row throws InflateException and the whole
+    // list (Music tab, Search, folder media) crashes on the first row bind.
+    // That was the v3.3 Music-tab crash; this constructor is the root fix.
+    public AnimatedBarsView(Context c, AttributeSet attrs) {
+        this(c, attrs, 0);
+    }
+
+    public AnimatedBarsView(Context c, AttributeSet attrs, int defStyleAttr) {
+        super(c, attrs, defStyleAttr);
         paint.setColor(Theme.PRIMARY);
         paint.setStyle(Paint.Style.FILL);
     }

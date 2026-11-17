@@ -111,3 +111,40 @@ tabs; (f) the Vault PIN screen shows the full description text with no
 "…"; (g) the Music tab no longer shows the chunky fast-scroll pill on
 the right edge; (h) ads still fail silently (account unverified) and the
 banner area collapses exactly as in v3.2.
+
+## v3.4 (versionCode 14) — verification status
+
+Compile/static-verified only — NOT device-tested (no emulator/KVM in the
+build environment; the user's install on his Infinix Hot 40 is the device
+test, as with every Sonora build).
+
+- Build: `build-v34.sh` (derived from build-v33.sh; same manual pipeline,
+  same `${applicationId}` sed-substitution + assert, same AdMob units),
+  versionCode 14 / versionName 3.4. Build green.
+- Delivery file verified at `~/workspace/your_files/sonora/Sonora.apk`
+  (the exact file that ships, not just the build output): 5,510,438 bytes,
+  MD5 `1157f5dd7031c04af8a2c3673f1475a5`; aapt2 badging
+  `com.nawazishali.sonora` vc14 / 3.4; `aapt2 dump xmltree` on the merged
+  manifest: zero literal `${applicationId}`; provider authorities
+  `com.nawazishali.sonora.mobileadsinitprovider`,
+  `com.nawazishali.sonora.androidx-startup`,
+  `com.nawazishali.sonora.fileprovider`; apksigner cert SHA-256
+  `066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050`
+  (unchanged — installs over v3.3).
+- Crash root cause established by code inspection: `AnimatedBarsView`
+  lacked the `(Context, AttributeSet)` constructor LayoutInflater requires
+  for the `<…AnimatedBarsView>` element v3.3 added to
+  `item_media_list.xml` → `InflateException` (NoSuchMethodException) on the
+  first row bind of the Music tab. Fixed at the root, plus defensive guards
+  around all row decoration and a bitmask fix in `Ui.gradientFor`.
+- Device checklist for the user's v3.4 install: (a) Music tab opens and
+  lists songs with NO crash; (b) Search results, folder contents and the
+  Videos tab list mode also open fine (same layout); (c) the playing
+  song's row shows the animated EQ bars; (d) in the video player, Speed /
+  Aspect / Audio / Subtitles / Repeat / Rotate each open the centered 3D
+  box with the current choice highlighted, and each choice still does
+  exactly what it did before; (e) Settings → About shows "Version 3.4";
+  (f) vault rows open the vault menu on long-press (no ⋮ sheet);
+  (g) Edit Profile → Choose photo no longer leaves the dialog floating;
+  (h) Videos grid/list toggle icon matches the mode; (i) ads still fail
+  silently (account unverified) exactly as before.

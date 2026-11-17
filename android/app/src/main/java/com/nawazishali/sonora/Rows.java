@@ -43,30 +43,41 @@ public class Rows {
 
         // v3.3 music vibe: the currently-playing song gets mini EQ bars
         // (animated while playing, frozen mid-dance while paused).
-        if (!it.video && MusicService.instance != null && MusicService.instance.current() != null
-                && it.key().equals(MusicService.instance.current().key())) {
-            AnimatedBarsView eq = new AnimatedBarsView(ctx);
-            LinearLayout.LayoutParams elp = new LinearLayout.LayoutParams(Ui.dp(22), Ui.dp(16));
-            elp.setMargins(0, 0, Ui.dp(8), 0);
-            eq.setLayoutParams(elp);
-            eq.setAnimating(MusicService.instance.isPlaying());
-            row.addView(eq);
-        }
-        if (Db.get(ctx).isFavorite(it.key())) {
+        // v3.4: guarded like MediaAdapter — decoration degrades silently.
+        try {
+            if (!it.video && MusicService.instance != null && MusicService.instance.current() != null
+                    && it.key().equals(MusicService.instance.current().key())) {
+                AnimatedBarsView eq = new AnimatedBarsView(ctx);
+                LinearLayout.LayoutParams elp = new LinearLayout.LayoutParams(Ui.dp(22), Ui.dp(16));
+                elp.setMargins(0, 0, Ui.dp(8), 0);
+                eq.setLayoutParams(elp);
+                eq.setAnimating(MusicService.instance.isPlaying());
+                row.addView(eq);
+            }
+        } catch (Throwable ignored) { }
+        boolean isFavRow = false;
+        try { isFavRow = Db.get(ctx).isFavorite(it.key()); } catch (Throwable ignored) { }
+        if (isFavRow) {
             ImageView fav = Ui.icon(ctx, R.drawable.ic_fav, 18, Theme.ACCENT);
             row.addView(fav);
         }
         // Overflow button (v3.1): opens the same 3D MediaSheet as long-press.
-        ImageView more = new ImageView(ctx);
-        more.setImageResource(R.drawable.ic_more);
-        more.setColorFilter(Theme.TEXT2);
-        more.setPadding(Ui.dp(8), Ui.dp(8), Ui.dp(2), Ui.dp(8));
-        more.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(36), Ui.dp(36)));
-        more.setOnClickListener(v -> {
-            if (ctx instanceof android.app.Activity) ItemMenu.show((android.app.Activity) ctx, it, null);
-        });
-        PressFx.apply(more);
-        row.addView(more);
+        // v3.4 audit fix: vault rows skip it — a vault item has no playable
+        // uri (it is encrypted), so the standard sheet's Play/Share/Rename/
+        // Delete/Extract rows cannot work on it. The vault's own menu
+        // (Play / Export / Delete) stays on the row's long-press instead.
+        if (!it.vault) {
+            ImageView more = new ImageView(ctx);
+            more.setImageResource(R.drawable.ic_more);
+            more.setColorFilter(Theme.TEXT2);
+            more.setPadding(Ui.dp(8), Ui.dp(8), Ui.dp(2), Ui.dp(8));
+            more.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(36), Ui.dp(36)));
+            more.setOnClickListener(v -> {
+                if (ctx instanceof android.app.Activity) ItemMenu.show((android.app.Activity) ctx, it, null);
+            });
+            PressFx.apply(more);
+            row.addView(more);
+        }
         if (click != null) row.setOnClickListener(click);
         if (longClick != null) row.setOnLongClickListener(longClick);
         return row;

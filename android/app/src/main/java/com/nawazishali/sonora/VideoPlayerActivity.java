@@ -70,6 +70,8 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     private int aspectMode = ASPECT_FIT;
     private float speed = 1f;
     private boolean repeatOne = false;
+    private int subSel = 0; // subtitle menu selection: 0 = Off, 1..n = embedded, last = external .srt
+    private TextView repeatBtn;
     private int videoW = 0, videoH = 0;
     private List<SrtParser.Cue> srtCues;
     private Uri srtUri;
@@ -253,13 +255,9 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         tools.addView(toolBtn("Aspect", v -> aspectMenu()));
         tools.addView(toolBtn("Subtitles", v -> subtitleMenu()));
         tools.addView(toolBtn("Audio", v -> audioTrackMenu()));
-        tools.addView(toolBtn(repeatOne ? "Repeat: On" : "Repeat", v -> {
-            repeatOne = !repeatOne;
-            Toast.makeText(this, repeatOne ? "Repeat one: on" : "Repeat: off", Toast.LENGTH_SHORT).show();
-            ((TextView) v).setText(repeatOne ? "Repeat: On" : "Repeat");
-            scheduleHide();
-        }));
-        tools.addView(toolBtn("Rotate", v -> rotateScreen()));
+        repeatBtn = toolBtn(repeatOne ? "Repeat: On" : "Repeat", v -> repeatMenu());
+        tools.addView(repeatBtn);
+        tools.addView(toolBtn("Rotate", v -> rotateMenu()));
         bottomBar.addView(tools);
         root.addView(bottomBar);
 
@@ -472,7 +470,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         buffering.setVisibility(View.VISIBLE);
         player.prepareAsync();
         Db.get(this).recordPlay(it);
-        srtCues = null; srtUri = null;
+        srtCues = null; srtUri = null; subSel = 0;
         captionView.setVisibility(View.GONE);
     }
 
@@ -623,12 +621,17 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         }
     }
 
-    // ---------------- menus ----------------
+    // ---------------- menus (v3.4: all open as the centered 3D popup) ----
     private void speedMenu() {
         final float[] speeds = {0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f};
         String[] labels = {"0.25x", "0.5x", "0.75x", "1.0x (normal)", "1.25x", "1.5x", "2.0x"};
-        Dialogs.list(this, "Playback speed", labels,
-                w -> { speed = speeds[w]; applySpeed(); speedLabel.setText(labels[w].replace(" (normal)", "")); });
+        List<MediaSheet.Option> opts = new ArrayList<>();
+        for (int i = 0; i < labels.length; i++) {
+            final int w = i;
+            opts.add(new MediaSheet.Option(R.drawable.ic_timer, labels[i], speed == speeds[i],
+                    () -> { speed = speeds[w]; applySpeed(); speedLabel.setText(labels[w].replace(" (normal)", "")); }));
+        }
+        MediaSheet.showOptions(this, "Playback speed", R.drawable.ic_timer, opts);
     }
 
     private void applySpeed() {
@@ -642,7 +645,13 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
 
     private void aspectMenu() {
         String[] labels = {"Fit to screen", "Fill (crop)", "16:9", "4:3", "Original size"};
-        Dialogs.list(this, "Aspect ratio", labels, w -> { aspectMode = w; updateAspect(); });
+        List<MediaSheet.Option> opts = new ArrayList<>();
+        for (int i = 0; i < labels.length; i++) {
+            final int w = i;
+            opts.add(new MediaSheet.Option(R.drawable.ic_crop, labels[i], aspectMode == i,
+                    () -> { aspectMode = w; updateAspect(); }));
+        }
+        MediaSheet.showOptions(this, "Aspect ratio", R.drawable.ic_crop, opts);
     }
 
     private void updateAspect() {
@@ -692,43 +701,78 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
             Toast.makeText(this, "Only one audio track in this video", Toast.LENGTH_SHORT).show();
             return;
         }
-        String[] labels = new String[tracks.size()];
+        int selectedTrack = -1;
+        try { selectedTrack = player.getSelectedTrack(MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_AUDIO); }
+        catch (Throwable ignored) { }
+        List<MediaSheet.Option> opts = new ArrayList<>();
         for (int i = 0; i < tracks.size(); i++) {
+            final int w = i;
             String lang = "";
             try { lang = player.getTrackInfo()[tracks.get(i)].getLanguage(); } catch (Throwable ignored) { }
-            labels[i] = "Audio track " + (i + 1) + (lang == null || lang.isEmpty() || "und".equals(lang) ? "" : " (" + lang + ")");
+            String label = "Audio track " + (i + 1) + (lang == null || lang.isEmpty() || "und".equals(lang) ? "" : " (" + lang + ")");
+            opts.add(new MediaSheet.Option(R.drawable.ic_volume, label, tracks.get(i) == selectedTrack,
+                    () -> { try { player.selectTrack(tracks.get(w)); } catch (Throwable ignored) { } }));
         }
-        Dialogs.list(this, "Audio track", labels, w -> {
-            try { player.selectTrack(tracks.get(w)); } catch (Throwable ignored) { }
-        });
+        MediaSheet.showOptions(this, "Audio track", R.drawable.ic_volume, opts);
     }
 
     private void subtitleMenu() {
         final List<Integer> tracks = trackIndices(MediaPlayer.TrackInfo.MEDIA_TRACK_TYPE_TIMEDTEXT);
-        List<String> labels = new ArrayList<>();
-        labels.add("Off");
+        final int total = tracks.size() + 2; // Off + embedded + external loader
+        List<MediaSheet.Option> opts = new ArrayList<>();
+        opts.add(new MediaSheet.Option(R.drawable.ic_close, "Off", subSel == 0, () -> {
+            subSel = 0;
+            srtCues = null;
+            for (int t : tracks) try { player.deselectTrack(t); } catch (Throwable ignored) { }
+            captionView.setVisibility(View.GONE);
+        }));
         for (int i = 0; i < tracks.size(); i++) {
+            final int w = i + 1;
             String lang = "";
             try { lang = player.getTrackInfo()[tracks.get(i)].getLanguage(); } catch (Throwable ignored) { }
-            labels.add("Embedded subtitle " + (i + 1) + (lang == null || lang.isEmpty() || "und".equals(lang) ? "" : " (" + lang + ")"));
-        }
-        labels.add("Load external .srt file…");
-        Dialogs.list(this, "Subtitles", labels.toArray(new String[0]), w -> {
-            if (w == 0) {
-                srtCues = null;
-                for (int t : tracks) try { player.deselectTrack(t); } catch (Throwable ignored) { }
-                captionView.setVisibility(View.GONE);
-            } else if (w == labels.size() - 1) {
-                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                i.setType("*/*");
-                i.addCategory(Intent.CATEGORY_OPENABLE);
-                try { startActivityForResult(i, REQ_SRT); }
-                catch (Exception e) { Toast.makeText(this, "File picker not available", Toast.LENGTH_SHORT).show(); }
-            } else {
+            String label = "Embedded subtitle " + (i + 1) + (lang == null || lang.isEmpty() || "und".equals(lang) ? "" : " (" + lang + ")");
+            opts.add(new MediaSheet.Option(R.drawable.ic_subtitle, label, subSel == w, () -> {
+                subSel = w;
                 srtCues = null;
                 try { player.selectTrack(tracks.get(w - 1)); } catch (Throwable ignored) { }
-            }
-        });
+            }));
+        }
+        opts.add(new MediaSheet.Option(R.drawable.ic_upload, "Load external .srt file…", subSel == total - 1, () -> {
+            subSel = total - 1;
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.setType("*/*");
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            try { startActivityForResult(i, REQ_SRT); }
+            catch (Exception e) { Toast.makeText(this, "File picker not available", Toast.LENGTH_SHORT).show(); }
+        }));
+        MediaSheet.showOptions(this, "Subtitles", R.drawable.ic_subtitle, opts);
+    }
+
+    private void repeatMenu() {
+        List<MediaSheet.Option> opts = new ArrayList<>();
+        opts.add(new MediaSheet.Option(R.drawable.ic_close, "Off", !repeatOne, () -> setRepeat(false)));
+        opts.add(new MediaSheet.Option(R.drawable.ic_repeat_one, "Repeat one", repeatOne, () -> setRepeat(true)));
+        MediaSheet.showOptions(this, "Repeat", R.drawable.ic_repeat, opts);
+    }
+
+    /** Same end state + feedback as the old one-tap Repeat toggle. */
+    private void setRepeat(boolean on) {
+        repeatOne = on;
+        Toast.makeText(this, on ? "Repeat one: on" : "Repeat: off", Toast.LENGTH_SHORT).show();
+        if (repeatBtn != null) repeatBtn.setText(on ? "Repeat: On" : "Repeat");
+        scheduleHide();
+    }
+
+    private void rotateMenu() {
+        int o = getResources().getConfiguration().orientation;
+        List<MediaSheet.Option> opts = new ArrayList<>();
+        opts.add(new MediaSheet.Option(R.drawable.ic_refresh, "Portrait",
+                o == Configuration.ORIENTATION_PORTRAIT,
+                () -> { setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); scheduleHide(); }));
+        opts.add(new MediaSheet.Option(R.drawable.ic_refresh, "Landscape",
+                o == Configuration.ORIENTATION_LANDSCAPE,
+                () -> { setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE); scheduleHide(); }));
+        MediaSheet.showOptions(this, "Rotate screen", R.drawable.ic_refresh, opts);
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {
@@ -750,14 +794,6 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
                 }
             }).start();
         }
-    }
-
-    private void rotateScreen() {
-        int o = getResources().getConfiguration().orientation;
-        setRequestedOrientation(o == Configuration.ORIENTATION_LANDSCAPE
-                ? ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                : ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        scheduleHide();
     }
 
     // ---------------- PiP ----------------

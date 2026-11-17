@@ -23,6 +23,7 @@ import java.util.List;
 public class SettingsTab extends Tab {
     private static final int REQ_PROFILE_PHOTO = 991;
     private LinearLayout content;
+    private android.app.Dialog profileDialog; // v3.4: dismissed before photo pick / after removal
 
     public SettingsTab(Activity act) { super(act); }
 
@@ -177,7 +178,10 @@ public class SettingsTab extends Tab {
         btnRow.setOrientation(LinearLayout.HORIZONTAL);
         btnRow.setPadding(0, Ui.dp(14), 0, Ui.dp(2));
         LinearLayout photoBtn = Ui.chip(act, R.drawable.ic_edit, "Choose photo");
-        photoBtn.setOnClickListener(v -> pickProfilePhoto());
+        photoBtn.setOnClickListener(v -> {
+            if (profileDialog != null) profileDialog.dismiss();
+            pickProfilePhoto();
+        });
         btnRow.addView(photoBtn);
         if (Profile.hasPhoto(act)) {
             LinearLayout removeBtn = Ui.chip(act, R.drawable.ic_delete, "Remove photo");
@@ -188,13 +192,14 @@ public class SettingsTab extends Tab {
             removeBtn.setOnClickListener(v -> {
                 Profile.clearPhoto(act);
                 Toast.makeText(act, "Profile photo removed", Toast.LENGTH_SHORT).show();
+                if (profileDialog != null) profileDialog.dismiss();
                 rebuild();
             });
             btnRow.addView(removeBtn);
         }
         box.addView(btnRow);
 
-        new Dialogs.Builder(act)
+        final Dialogs.Builder builder = new Dialogs.Builder(act)
                 .title("Edit profile")
                 .content(box)
                 .button("Cancel", Dialogs.BTN_GHOST, (Runnable) null)
@@ -202,8 +207,12 @@ public class SettingsTab extends Tab {
                     Profile.setName(act, nameInput.getText().toString());
                     Toast.makeText(act, "Profile saved", Toast.LENGTH_SHORT).show();
                     rebuild();
-                })
-                .show();
+                });
+        // (photo pick / removal dismiss this dialog via the profileDialog
+        // field — see the handlers above — so no stale dialog floats over
+        // the rebuilt Settings tab.)
+        profileDialog = builder.dialog();
+        builder.show();
     }
 
     private void pickProfilePhoto() {
@@ -255,7 +264,7 @@ public class SettingsTab extends Tab {
 
     private void aboutDialog() {
         Dialogs.message(act, "Sonora",
-                "Version 3.3\n\nYour Complete Media Experience\n\n"
+                "Version 3.4\n\nYour Complete Media Experience\n\n"
                         + Library.AUDIO.size() + " songs  •  " + Library.VIDEO.size() + " videos on this device\n\n"
                         + "An original Sonora design in premium violet. Offline video & music player — "
                         + "no account, no uploads; your media never leaves your phone.");
