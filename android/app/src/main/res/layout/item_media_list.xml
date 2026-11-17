@@ -14,7 +14,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:background="#29183C"
+            android:background="#211A35"
             android:contentDescription="Thumbnail" />
         <ImageView
             android:id="@+id/badge"
@@ -47,6 +47,14 @@
             android:maxLines="1"
             android:ellipsize="end" />
     </LinearLayout>
+
+    <com.nawazishali.sonora.AnimatedBarsView
+        android:id="@+id/eqbars"
+        android:layout_width="22dp"
+        android:layout_height="16dp"
+        android:layout_marginEnd="6dp"
+        android:visibility="gone"
+        android:contentDescription="Now playing" />
 
     <ImageView
         android:id="@+id/fav"

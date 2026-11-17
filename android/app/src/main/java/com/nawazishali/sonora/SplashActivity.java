@@ -19,7 +19,7 @@ public class SplashActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
-        root.setBackgroundColor(Theme.BG);
+        root.setBackground(Ui.appBg());
 
         TextView logo = new TextView(this);
         logo.setText("SONORA");

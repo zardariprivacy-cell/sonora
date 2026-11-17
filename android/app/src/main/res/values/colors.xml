@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Midnight Violet (dark, primary theme) -->
-    <color name="bg">#100719</color>
-    <color name="card">#1C1030</color>
-    <color name="elevated">#29183C</color>
-    <color name="primary">#813CFF</color>
-    <color name="secondary">#C45BFF</color>
-    <color name="accent">#E84BCB</color>
+    <!-- Premium violet (dark, primary theme) — v3.2 palette from the user's reference.
+         Base hexes are exact: primary #9B6BFF, bg #100D1C, card #211A35, accent #C084FC.
+         Elevated / border / text-secondary are derived from the same family. -->
+    <color name="bg">#100D1C</color>
+    <color name="card">#211A35</color>
+    <color name="elevated">#2C2247</color>
+    <color name="primary">#9B6BFF</color>
+    <color name="secondary">#C084FC</color>
+    <color name="accent">#C084FC</color>
     <color name="text_main">#FFFFFF</color>
-    <color name="text_secondary">#B8AEC5</color>
-    <color name="border">#382849</color>
+    <color name="text_secondary">#B8ADD4</color>
+    <color name="border">#3A2C5E</color>
 
     <!-- Light variant of the same palette -->
     <color name="bg_light">#F5F1FA</color>
     <color name="card_light">#FFFFFF</color>
-    <color name="elevated_light">#EDE6F7</color>
+    <color name="elevated_light">#EAE3F8</color>
     <color name="text_main_light">#1B1030</color>
     <color name="text_secondary_light">#5E5470</color>
     <color name="border_light">#DCD2EC</color>

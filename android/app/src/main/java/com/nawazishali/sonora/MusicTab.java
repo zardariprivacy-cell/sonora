@@ -1,7 +1,6 @@
 package com.nawazishali.sonora;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -35,7 +34,7 @@ public class MusicTab extends Tab {
     @Override protected View create() {
         rootL = new LinearLayout(act);
         rootL.setOrientation(LinearLayout.VERTICAL);
-        rootL.setBackgroundColor(Theme.BG);
+        rootL.setBackground(Ui.appBg());
 
         LinearLayout bar = new LinearLayout(act);
         bar.setOrientation(LinearLayout.HORIZONTAL);
@@ -82,7 +81,12 @@ public class MusicTab extends Tab {
         list = new ListView(act);
         list.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
         list.setDivider(null);
-        list.setBackgroundColor(Theme.BG);
+        list.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        // v3.3: the OEM fast-scroll thumb rendered as a big stray pill on the
+        // right edge — disable it and keep a thin, fading scrollbar instead.
+        list.setFastScrollEnabled(false);
+        list.setScrollbarFadingEnabled(true);
+        list.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
         rootL.addView(list);
 
         emptyBox = new LinearLayout(act);
@@ -111,9 +115,17 @@ public class MusicTab extends Tab {
         for (int i = 0; i < chipViews.size(); i++) {
             TextView c = chipViews.get(i);
             boolean active = i == mode;
-            c.setBackground(active ? Ui.gradientBg(18) : Ui.rounded(Theme.ELEVATED, 18));
-            c.setTextColor(active ? 0xFFFFFFFF : Theme.TEXT2);
+            c.setBackground(Ui.pillBg(active));
+            c.setTextColor(active ? 0xFFFFFFFF : Theme.TEXT);
         }
+    }
+
+    /** Jump straight to the Favorites view (used by the Home tab's Favorites chip). */
+    public void presetFavorites() {
+        mode = M_FAVS;
+        drillTitle = null;
+        drillPlaylistId = -1;
+        if (root != null) { styleChips(); applyData(); }
     }
 
     // ---------------- data ----------------
@@ -156,7 +168,7 @@ public class MusicTab extends Tab {
             List<String> rows = new ArrayList<>();
             for (Map.Entry<String, List<MediaItem>> e : map.entrySet())
                 rows.add(e.getKey() + "\n" + e.getValue().size() + " songs");
-            list.setAdapter(new ArrayAdapter<>(act, android.R.layout.simple_list_item_1, rows));
+            list.setAdapter(styledAdapter(rows));
             setEmpty(rows.isEmpty(), "No music found", "Songs on your phone will appear here automatically.");
             countLabel.setText("Music  •  " + Library.AUDIO.size() + " songs");
             return;
@@ -167,7 +179,7 @@ public class MusicTab extends Tab {
             List<String> rows = new ArrayList<>();
             for (int i = 0; i < names.size(); i++) rows.add(names.get(i) + "\n" + pls.get(i)[1] + " songs");
             rows.add("+  New playlist");
-            list.setAdapter(new ArrayAdapter<>(act, android.R.layout.simple_list_item_1, rows));
+            list.setAdapter(styledAdapter(rows));
             setEmpty(false, "", "");
             countLabel.setText("Playlists  •  " + names.size());
             return;
@@ -182,6 +194,19 @@ public class MusicTab extends Tab {
         countLabel.setText("Music  •  " + data.size() + " songs");
     }
 
+    /** v3.3: drill-in lists (artists / albums / playlists) get the 3D card look too. */
+    private ArrayAdapter<String> styledAdapter(List<String> rows) {
+        return new ArrayAdapter<String>(act, android.R.layout.simple_list_item_1, rows) {
+            @Override public View getView(int pos, View convert, android.view.ViewGroup parent) {
+                TextView tv = (TextView) super.getView(pos, convert, parent);
+                tv.setBackground(Ui.cardBg());
+                tv.setTextColor(Theme.TEXT);
+                tv.setPadding(Ui.dp(16), Ui.dp(13), Ui.dp(16), Ui.dp(13));
+                return tv;
+            }
+        };
+    }
+
     private void setEmpty(boolean empty, String title, String msg) {
         list.setVisibility(empty ? View.GONE : View.VISIBLE);
         emptyBox.setVisibility(empty ? View.VISIBLE : View.GONE);
@@ -191,7 +216,7 @@ public class MusicTab extends Tab {
         TextView t = Ui.text(act, title, 16, Theme.TEXT, true);
         t.setPadding(0, Ui.dp(10), 0, 0);
         emptyBox.addView(t);
-        TextView m = Ui.sub(act, msg);
+        TextView m = Ui.bodyWrap(act, msg);
         m.setGravity(Gravity.CENTER);
         emptyBox.addView(m);
         if (!Library.hasAudioPermission(act)) {
@@ -232,19 +257,14 @@ public class MusicTab extends Tab {
             final List<String> names = Db.get(act).playlistNames();
             if (pos >= names.size()) return false;
             final long pid = pls.get(pos)[0];
-            new AlertDialog.Builder(act)
-                    .setTitle(names.get(pos))
-                    .setItems(new String[]{"Rename", "Delete playlist"}, (d, w) -> {
-                        if (w == 0) ItemMenu.nameDialog(act, "Rename playlist", name -> {
-                            Db.get(act).renamePlaylist(pid, name); applyData();
-                        });
-                        else new AlertDialog.Builder(act)
-                                .setTitle("Delete playlist?")
-                                .setMessage("The songs stay on your phone; only the playlist is removed.")
-                                .setPositiveButton("Delete", (dd, ww) -> { Db.get(act).deletePlaylist(pid); applyData(); })
-                                .setNegativeButton("Cancel", null).show();
-                    })
-                    .show();
+            Dialogs.list(act, names.get(pos), new String[]{"Rename", "Delete playlist"}, w -> {
+                if (w == 0) ItemMenu.nameDialog(act, "Rename playlist", name -> {
+                    Db.get(act).renamePlaylist(pid, name); applyData();
+                });
+                else Dialogs.confirm(act, "Delete playlist?",
+                        "The songs stay on your phone; only the playlist is removed.",
+                        "Delete", true, () -> { Db.get(act).deletePlaylist(pid); applyData(); });
+            });
             return true;
         }
         if (drillTitle == null && (mode == M_ARTISTS || mode == M_ALBUMS)) return false;
@@ -252,17 +272,15 @@ public class MusicTab extends Tab {
         if (pos >= 0 && pos < data.size()) {
             final MediaItem it = data.get(pos);
             if (drillPlaylistId > 0) {
-                new AlertDialog.Builder(act)
-                        .setTitle(it.title)
-                        .setItems(new String[]{"Play", "Remove from playlist", "More options…"}, (d, w) -> {
+                Dialogs.list(act, it.title,
+                        new String[]{"Play", "Remove from playlist", "More options…"}, w -> {
                             if (w == 0) ItemMenu.playAudio(act, data, pos);
                             else if (w == 1) {
                                 Db.get(act).removeFromPlaylist(drillPlaylistId, it.key());
                                 drillSongs = Library.resolveKeys(Db.get(act).playlistKeys(drillPlaylistId));
                                 applyData();
                             } else ItemMenu.show(act, it, this::applyData);
-                        })
-                        .show();
+                        });
             } else ItemMenu.show(act, it, this::applyData);
             return true;
         }
@@ -279,10 +297,7 @@ public class MusicTab extends Tab {
 
     private void sortDialog() {
         String[] names = {"Name (A–Z)", "Date added (newest)", "Size (largest)", "Duration (longest)"};
-        new AlertDialog.Builder(act)
-                .setTitle("Sort songs by")
-                .setItems(names, (d, w) -> { sortMode = w; applyData(); })
-                .show();
+        Dialogs.list(act, "Sort songs by", names, w -> { sortMode = w; applyData(); });
     }
 
     @Override public void refresh() { applyData(); }

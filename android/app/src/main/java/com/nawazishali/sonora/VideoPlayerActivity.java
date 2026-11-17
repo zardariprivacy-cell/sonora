@@ -1,7 +1,6 @@
 package com.nawazishali.sonora;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -628,10 +627,8 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     private void speedMenu() {
         final float[] speeds = {0.25f, 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f};
         String[] labels = {"0.25x", "0.5x", "0.75x", "1.0x (normal)", "1.25x", "1.5x", "2.0x"};
-        new AlertDialog.Builder(this)
-                .setTitle("Playback speed")
-                .setItems(labels, (d, w) -> { speed = speeds[w]; applySpeed(); speedLabel.setText(labels[w].replace(" (normal)", "")); })
-                .show();
+        Dialogs.list(this, "Playback speed", labels,
+                w -> { speed = speeds[w]; applySpeed(); speedLabel.setText(labels[w].replace(" (normal)", "")); });
     }
 
     private void applySpeed() {
@@ -645,10 +642,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
 
     private void aspectMenu() {
         String[] labels = {"Fit to screen", "Fill (crop)", "16:9", "4:3", "Original size"};
-        new AlertDialog.Builder(this)
-                .setTitle("Aspect ratio")
-                .setItems(labels, (d, w) -> { aspectMode = w; updateAspect(); })
-                .show();
+        Dialogs.list(this, "Aspect ratio", labels, w -> { aspectMode = w; updateAspect(); });
     }
 
     private void updateAspect() {
@@ -704,12 +698,9 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
             try { lang = player.getTrackInfo()[tracks.get(i)].getLanguage(); } catch (Throwable ignored) { }
             labels[i] = "Audio track " + (i + 1) + (lang == null || lang.isEmpty() || "und".equals(lang) ? "" : " (" + lang + ")");
         }
-        new AlertDialog.Builder(this)
-                .setTitle("Audio track")
-                .setItems(labels, (d, w) -> {
-                    try { player.selectTrack(tracks.get(w)); } catch (Throwable ignored) { }
-                })
-                .show();
+        Dialogs.list(this, "Audio track", labels, w -> {
+            try { player.selectTrack(tracks.get(w)); } catch (Throwable ignored) { }
+        });
     }
 
     private void subtitleMenu() {
@@ -722,25 +713,22 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
             labels.add("Embedded subtitle " + (i + 1) + (lang == null || lang.isEmpty() || "und".equals(lang) ? "" : " (" + lang + ")"));
         }
         labels.add("Load external .srt file…");
-        new AlertDialog.Builder(this)
-                .setTitle("Subtitles")
-                .setItems(labels.toArray(new String[0]), (d, w) -> {
-                    if (w == 0) {
-                        srtCues = null;
-                        for (int t : tracks) try { player.deselectTrack(t); } catch (Throwable ignored) { }
-                        captionView.setVisibility(View.GONE);
-                    } else if (w == labels.size() - 1) {
-                        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                        i.setType("*/*");
-                        i.addCategory(Intent.CATEGORY_OPENABLE);
-                        try { startActivityForResult(i, REQ_SRT); }
-                        catch (Exception e) { Toast.makeText(this, "File picker not available", Toast.LENGTH_SHORT).show(); }
-                    } else {
-                        srtCues = null;
-                        try { player.selectTrack(tracks.get(w - 1)); } catch (Throwable ignored) { }
-                    }
-                })
-                .show();
+        Dialogs.list(this, "Subtitles", labels.toArray(new String[0]), w -> {
+            if (w == 0) {
+                srtCues = null;
+                for (int t : tracks) try { player.deselectTrack(t); } catch (Throwable ignored) { }
+                captionView.setVisibility(View.GONE);
+            } else if (w == labels.size() - 1) {
+                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                i.setType("*/*");
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                try { startActivityForResult(i, REQ_SRT); }
+                catch (Exception e) { Toast.makeText(this, "File picker not available", Toast.LENGTH_SHORT).show(); }
+            } else {
+                srtCues = null;
+                try { player.selectTrack(tracks.get(w - 1)); } catch (Throwable ignored) { }
+            }
+        });
     }
 
     @Override protected void onActivityResult(int req, int res, Intent data) {

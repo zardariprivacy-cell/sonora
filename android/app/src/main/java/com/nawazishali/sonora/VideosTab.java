@@ -1,7 +1,6 @@
 package com.nawazishali.sonora;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.AbsListView;
@@ -29,7 +28,7 @@ public class VideosTab extends Tab {
     @Override protected View create() {
         rootL = new LinearLayout(act);
         rootL.setOrientation(LinearLayout.VERTICAL);
-        rootL.setBackgroundColor(Theme.BG);
+        rootL.setBackground(Ui.appBg());
 
         // Toolbar
         LinearLayout bar = new LinearLayout(act);
@@ -111,8 +110,8 @@ public class VideosTab extends Tab {
         for (int i = 0; i < chipViews.size(); i++) {
             TextView c = chipViews.get(i);
             boolean active = i == filter;
-            c.setBackground(active ? Ui.gradientBg(18) : Ui.rounded(Theme.ELEVATED, 18));
-            c.setTextColor(active ? 0xFFFFFFFF : Theme.TEXT2);
+            c.setBackground(Ui.pillBg(active));
+            c.setTextColor(active ? 0xFFFFFFFF : Theme.TEXT);
         }
     }
 
@@ -153,7 +152,7 @@ public class VideosTab extends Tab {
             emptyBox.removeAllViews();
             if (!Library.hasVideoPermission(act)) {
                 emptyBox.addView(Ui.text(act, "Video access needed", 16, Theme.TEXT, true));
-                TextView m = Ui.sub(act, "Allow access to your videos to browse and play them here.");
+                TextView m = Ui.bodyWrap(act, "Allow access to your videos to browse and play them here.");
                 m.setGravity(Gravity.CENTER);
                 emptyBox.addView(m);
                 LinearLayout btn = Ui.chip(act, 0, "Grant permission");
@@ -163,17 +162,14 @@ public class VideosTab extends Tab {
             } else {
                 emptyBox.addView(Ui.icon(act, R.drawable.ic_video, 48, Theme.TEXT2));
                 emptyBox.addView(Ui.text(act, "No videos found", 16, Theme.TEXT, true));
-                emptyBox.addView(Ui.sub(act, "Videos on your phone will appear here automatically."));
+                emptyBox.addView(Ui.bodyWrap(act, "Videos on your phone will appear here automatically."));
             }
         }
     }
 
     private void sortDialog() {
         String[] names = {"Name (A–Z)", "Date added (newest)", "Size (largest)", "Duration (longest)"};
-        new AlertDialog.Builder(act)
-                .setTitle("Sort videos by")
-                .setItems(names, (d, w) -> { sortMode = w; applyData(); })
-                .show();
+        Dialogs.list(act, "Sort videos by", names, w -> { sortMode = w; applyData(); });
     }
 
     private void toast(String s) { android.widget.Toast.makeText(act, s, android.widget.Toast.LENGTH_SHORT).show(); }

@@ -39,9 +39,50 @@ public class ImageLoader {
             Bitmap bmp = null;
             try { bmp = item.video ? videoThumb(ctx, item) : audioArt(ctx, item); }
             catch (Throwable ignored) { }
+            // v3.3: no blank squares — fall back to a generated colourful placeholder.
+            if (bmp == null) {
+                try { bmp = Artwork.placeholder(ctx, item, 288); } catch (Throwable ignored) { }
+            }
             if (bmp != null) CACHE.put(key, bmp);
             final Bitmap out = bmp;
             MAIN.post(() -> { if (key.equals(target.getTag()) && out != null) target.setImageBitmap(out); });
+        });
+    }
+
+    /** Callback for {@link #loadRound}: reports whether real artwork was found. */
+    public interface RoundCallback { void onResult(boolean hasArt); }
+
+    /**
+     * Load artwork circle-cropped (Now Playing disc / round avatars of songs).
+     * The circular bitmap is cached separately from the rectangular one. When
+     * no artwork exists the target is cleared and the callback reports false,
+     * so the caller can show its gradient-disc placeholder.
+     */
+    public static void loadRound(final Context ctx, final MediaItem item, final ImageView target,
+                                 final RoundCallback cb) {
+        final String key = item.key() + "|round";
+        target.setTag(key);
+        Bitmap hit = CACHE.get(key);
+        if (hit != null) {
+            target.setImageBitmap(hit);
+            if (cb != null) cb.onResult(true);
+            return;
+        }
+        target.setImageBitmap(null);
+        POOL.execute(() -> {
+            Bitmap bmp = null;
+            try {
+                Bitmap raw = item.video ? videoThumb(ctx, item) : audioArt(ctx, item);
+                if (raw == null) raw = Artwork.placeholder(ctx, item, 360); // v3.3 placeholder disc
+                if (raw != null) bmp = Ui.circleBitmap(raw);
+            } catch (Throwable ignored) { }
+            if (bmp != null) CACHE.put(key, bmp);
+            final Bitmap out = bmp;
+            MAIN.post(() -> {
+                if (!key.equals(target.getTag())) return;
+                if (out != null) target.setImageBitmap(out);
+                if (cb != null) cb.onResult(out != null);
+            });
         });
     }
 

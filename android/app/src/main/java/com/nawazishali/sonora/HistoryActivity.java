@@ -1,7 +1,6 @@
 package com.nawazishali.sonora;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.widget.LinearLayout;
@@ -20,7 +19,7 @@ public class HistoryActivity extends Activity {
         Ui.init(this);
 
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Theme.BG);
+        scroll.setBackground(Ui.appBg());
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(Ui.dp(16), Ui.dp(14), Ui.dp(16), Ui.dp(24));
@@ -46,12 +45,9 @@ public class HistoryActivity extends Activity {
         if (db.historyCount() > 0) {
             TextView clear = Ui.text(this, "Clear", 14, Theme.ACCENT, false);
             clear.setPadding(Ui.dp(10), Ui.dp(6), Ui.dp(2), Ui.dp(6));
-            clear.setOnClickListener(v -> new AlertDialog.Builder(this)
-                    .setTitle("Clear history?")
-                    .setMessage("This removes the playback history list. Your files are not touched.")
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Clear", (d, w) -> { Db.get(this).clearHistory(); rebuild(); })
-                    .show());
+            clear.setOnClickListener(v -> Dialogs.confirm(this, "Clear history?",
+                    "This removes the playback history list. Your files are not touched.",
+                    "Clear", false, () -> { Db.get(this).clearHistory(); rebuild(); }));
             bar.addView(clear);
         }
         content.addView(bar);
@@ -59,7 +55,7 @@ public class HistoryActivity extends Activity {
 
         List<MediaItem> items = Library.resolveKeys(db.recentAllKeys(200));
         if (items.isEmpty()) {
-            content.addView(Ui.sub(this, "Nothing here yet. Songs and videos you play will appear in this list."));
+            content.addView(Ui.bodyWrap(this, "Nothing here yet. Songs and videos you play will appear in this list."));
             return;
         }
         for (final MediaItem it : items) {

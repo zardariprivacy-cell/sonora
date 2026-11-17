@@ -20,7 +20,7 @@ public class FoldersTab extends Tab {
 
     @Override protected View create() {
         ScrollView scroll = new ScrollView(act);
-        scroll.setBackgroundColor(Theme.BG);
+        scroll.setBackground(Ui.appBg());
         content = new LinearLayout(act);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(Ui.dp(16), Ui.dp(14), Ui.dp(16), Ui.dp(24));
@@ -35,32 +35,45 @@ public class FoldersTab extends Tab {
         content.removeAllViews();
         content.addView(Ui.title(act, "Folders"));
 
-        // Storage summary card
+        // Storage summary card — v3.3: colourful 3D box with a gradient badge.
         LinearLayout card = new LinearLayout(act);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(Ui.cardBg());
+        card.setElevation(Ui.dp(4));
         card.setPadding(Ui.dp(16), Ui.dp(14), Ui.dp(16), Ui.dp(14));
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         clp.setMargins(0, Ui.dp(10), 0, Ui.dp(4));
         card.setLayoutParams(clp);
+        LinearLayout cardHead = new LinearLayout(act);
+        cardHead.setOrientation(LinearLayout.HORIZONTAL);
+        cardHead.setGravity(Gravity.CENTER_VERTICAL);
+        cardHead.addView(Ui.iconBadge(act, R.drawable.ic_sd, 0, 40, 21));
+        TextView cardTitle = Ui.text(act, "Internal Storage", 15.5f, Theme.TEXT, true);
+        LinearLayout.LayoutParams htlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        htlp.setMargins(Ui.dp(12), 0, 0, 0);
+        cardTitle.setLayoutParams(htlp);
+        cardHead.addView(cardTitle);
+        cardHead.addView(Ui.text(act, "›", 22, Theme.TEXT2, false));
+        card.addView(cardHead);
         try {
             StatFs fs = new StatFs(Environment.getDataDirectory().getPath());
             long total = fs.getTotalBytes(), free = fs.getAvailableBytes();
-            card.addView(Ui.text(act, "Internal Storage", 15, Theme.TEXT, true));
-            card.addView(Ui.sub(act, Ui.fmtSize(total - free) + " used  •  " + Ui.fmtSize(free) + " free of " + Ui.fmtSize(total)));
+            TextView used = Ui.bodyWrap(act, Ui.fmtSize(total - free) + " used  •  " + Ui.fmtSize(free) + " free of " + Ui.fmtSize(total));
+            used.setPadding(0, Ui.dp(8), 0, 0);
+            card.addView(used);
         } catch (Throwable ignored) { }
-        card.addView(Ui.sub(act, "Music " + Ui.fmtSize(Library.totalAudioSize()) + "  •  Videos " + Ui.fmtSize(Library.totalVideoSize())));
+        card.addView(Ui.bodyWrap(act, "Music " + Ui.fmtSize(Library.totalAudioSize()) + "  •  Videos " + Ui.fmtSize(Library.totalVideoSize())));
         card.setOnClickListener(v -> act.startActivity(new Intent(act, StorageActivity.class)));
+        PressFx.apply(card);
         content.addView(card);
 
-        // SAF folder access
-        LinearLayout saf = Ui.chip(act, R.drawable.ic_folder, "Open a folder (SD card / custom location)");
+        // SAF folder access — v3.3: colourful 3D card row with a gradient folder badge.
+        LinearLayout saf = actionCard(R.drawable.ic_folder, 2, "Open a folder", "SD card / custom location");
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         slp.setMargins(0, Ui.dp(10), 0, Ui.dp(6));
         saf.setLayoutParams(slp);
-        saf.setGravity(Gravity.CENTER);
         saf.setOnClickListener(v -> {
             Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
@@ -71,12 +84,11 @@ public class FoldersTab extends Tab {
 
         String savedTree = Db.get(act).getSetting("saf_tree", "");
         if (!savedTree.isEmpty()) {
-            LinearLayout last = Ui.chip(act, R.drawable.ic_folder, "Re-open last granted folder");
+            LinearLayout last = actionCard(R.drawable.ic_folder, 4, "Last granted folder", "Tap to re-open it");
             LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             llp.setMargins(0, Ui.dp(6), 0, Ui.dp(6));
             last.setLayoutParams(llp);
-            last.setGravity(Gravity.CENTER);
             last.setOnClickListener(v -> {
                 Intent i = new Intent(act, FolderMediaActivity.class);
                 i.putExtra("treeUri", Db.get(act).getSetting("saf_tree", ""));
@@ -87,7 +99,7 @@ public class FoldersTab extends Tab {
 
         if (!Library.hasAnyPermission(act)) {
             content.addView(Ui.spacer(act, 10));
-            content.addView(Ui.sub(act, "Allow media access to see your media folders."));
+            content.addView(Ui.bodyWrap(act, "Allow media access to see your media folders."));
             LinearLayout btn = Ui.chip(act, 0, "Grant permission");
             btn.setBackground(Ui.gradientBg(20));
             btn.setOnClickListener(v -> act.requestPermissions(Library.neededPermissions(), 101));
@@ -96,7 +108,7 @@ public class FoldersTab extends Tab {
         }
 
         java.util.List<Library.Folder> folders = Library.folders();
-        content.addView(Ui.section(act, "Media folders  •  " + folders.size()));
+        content.addView(Ui.sectionHeader(act, "Media folders  •  " + folders.size()));
         if (folders.isEmpty()) {
             content.addView(Ui.sub(act, "No media folders found yet."));
             return;
@@ -111,7 +123,8 @@ public class FoldersTab extends Tab {
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             lp.setMargins(0, 0, 0, Ui.dp(8));
             row.setLayoutParams(lp);
-            row.addView(Ui.icon(act, R.drawable.ic_folder, 30, Theme.SECONDARY));
+            row.setElevation(Ui.dp(3));
+            row.addView(Ui.iconBadge(act, R.drawable.ic_folder, f.name.hashCode(), 44, 23));
             LinearLayout texts = new LinearLayout(act);
             texts.setOrientation(LinearLayout.VERTICAL);
             LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
@@ -139,6 +152,28 @@ public class FoldersTab extends Tab {
             });
             content.addView(row);
         }
+    }
+
+    /** A colourful 3D action card: gradient badge + title + subtitle + chevron. */
+    private LinearLayout actionCard(int iconRes, int gradIndex, String title, String subtitle) {
+        LinearLayout row = new LinearLayout(act);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackground(Ui.cardBg());
+        row.setElevation(Ui.dp(3));
+        row.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
+        row.addView(Ui.iconBadge(act, iconRes, gradIndex, 44, 23));
+        LinearLayout texts = new LinearLayout(act);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tlp.setMargins(Ui.dp(12), 0, 0, 0);
+        texts.setLayoutParams(tlp);
+        texts.addView(Ui.text(act, title, 15, Theme.TEXT, false));
+        texts.addView(Ui.sub(act, subtitle));
+        row.addView(texts);
+        row.addView(Ui.text(act, "›", 22, Theme.TEXT2, false));
+        PressFx.apply(row);
+        return row;
     }
 
     @Override public void onActivityResult(int requestCode, int resultCode, Intent data) {

@@ -31,7 +31,7 @@ public class FolderMediaActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Theme.BG);
+        root.setBackground(Ui.appBg());
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setPadding(Ui.dp(10), Ui.dp(12), Ui.dp(14), Ui.dp(10));
@@ -44,7 +44,7 @@ public class FolderMediaActivity extends Activity {
 
         list = new ListView(this);
         list.setDivider(null);
-        list.setBackgroundColor(Theme.BG);
+        list.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         root.addView(list, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
         setContentView(root);

@@ -17,6 +17,7 @@ public class Rows {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(Ui.dp(10), Ui.dp(8), Ui.dp(10), Ui.dp(8));
         row.setBackground(Ui.cardBg());
+        row.setElevation(Ui.dp(3));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, 0, 0, Ui.dp(8));
@@ -40,6 +41,17 @@ public class Rows {
         texts.addView(Ui.sub(ctx, it.subtitle()));
         row.addView(texts);
 
+        // v3.3 music vibe: the currently-playing song gets mini EQ bars
+        // (animated while playing, frozen mid-dance while paused).
+        if (!it.video && MusicService.instance != null && MusicService.instance.current() != null
+                && it.key().equals(MusicService.instance.current().key())) {
+            AnimatedBarsView eq = new AnimatedBarsView(ctx);
+            LinearLayout.LayoutParams elp = new LinearLayout.LayoutParams(Ui.dp(22), Ui.dp(16));
+            elp.setMargins(0, 0, Ui.dp(8), 0);
+            eq.setLayoutParams(elp);
+            eq.setAnimating(MusicService.instance.isPlaying());
+            row.addView(eq);
+        }
         if (Db.get(ctx).isFavorite(it.key())) {
             ImageView fav = Ui.icon(ctx, R.drawable.ic_fav, 18, Theme.ACCENT);
             row.addView(fav);
@@ -65,7 +77,7 @@ public class Rows {
     // Sonora's own vector icons in the Midnight Violet palette. No cards in the
     // grid; list rows are flat with thin dividers.
 
-    /** One big-icon grid cell: large icon on top, label underneath, equal weight. */
+    /** One big-icon grid cell: large icon in a colourful gradient badge, label underneath. */
     public static LinearLayout gridCell(Context ctx, int iconRes, String label, View.OnClickListener click) {
         LinearLayout cell = new LinearLayout(ctx);
         cell.setOrientation(LinearLayout.VERTICAL);
@@ -73,11 +85,7 @@ public class Rows {
         cell.setPadding(Ui.dp(4), Ui.dp(14), Ui.dp(4), Ui.dp(12));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         cell.setLayoutParams(lp);
-        ImageView iv = new ImageView(ctx);
-        iv.setImageResource(iconRes);
-        iv.setColorFilter(Theme.SECONDARY);
-        iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(31), Ui.dp(31)));
-        cell.addView(iv);
+        cell.addView(Ui.iconBadge(ctx, iconRes, label.hashCode(), 52, 26));
         TextView t = Ui.text(ctx, label, 13, Theme.TEXT, false);
         t.setGravity(Gravity.CENTER);
         t.setMaxLines(2);
@@ -107,11 +115,7 @@ public class Rows {
         row.setPadding(Ui.dp(6), Ui.dp(15), Ui.dp(6), Ui.dp(15));
         row.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        ImageView iv = new ImageView(ctx);
-        iv.setImageResource(iconRes);
-        iv.setColorFilter(Theme.TEXT);
-        iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(25), Ui.dp(25)));
-        row.addView(iv);
+        row.addView(Ui.iconBadge(ctx, iconRes, label.hashCode(), 36, 19));
         TextView t = Ui.text(ctx, label, 15.5f, Theme.TEXT, false);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         tlp.setMargins(Ui.dp(16), 0, 0, 0);
@@ -130,7 +134,7 @@ public class Rows {
         View v = new View(ctx);
         v.setBackgroundColor(Theme.BORDER);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
-        lp.setMargins(Ui.dp(47), 0, 0, 0);
+        lp.setMargins(Ui.dp(58), 0, 0, 0);
         v.setLayoutParams(lp);
         return v;
     }
@@ -152,11 +156,13 @@ public class Rows {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(Ui.dp(14), Ui.dp(13), Ui.dp(14), Ui.dp(13));
         row.setBackground(Ui.cardBg());
+        row.setElevation(Ui.dp(3));
+        row.setElevation(Ui.dp(3));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, 0, 0, Ui.dp(8));
         row.setLayoutParams(lp);
-        row.addView(Ui.icon(ctx, iconRes, 22, Theme.SECONDARY));
+        row.addView(Ui.iconBadge(ctx, iconRes, title.hashCode(), 38, 20));
         LinearLayout texts = new LinearLayout(ctx);
         texts.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);

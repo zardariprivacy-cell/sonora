@@ -77,3 +77,37 @@ dismiss, and each row works (PiP row especially); (c) confirm the banner
 area shows nothing yet (account unverified) and the app behaves exactly as
 before; (d) open several videos in a row and confirm no interstitial
 appears more than once per 3 minutes (once ads serve).
+
+---
+
+## v3.3 (versionCode 13) — verification status
+
+**Compile/static-verified only — NOT device-tested.** The build is green
+via `build-v33.sh` and the DELIVERY file
+(`~/workspace/your_files/sonora/Sonora.apk`) itself was verified:
+
+- `aapt2 dump badging`: versionCode 13 / versionName 3.3.
+- `aapt2 dump xmltree` on the binary manifest: ZERO literal
+  `${applicationId}` occurrences; provider authorities are
+  `com.nawazishali.sonora.mobileadsinitprovider` and
+  `com.nawazishali.sonora.fileprovider`; AdMob APPLICATION_ID meta-data
+  present and unchanged (ca-app-pub-5229747293404900~3066756153).
+- `apksigner verify --print-certs`: SHA-256
+  066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050 —
+  unchanged, so v3.3 installs over v3.2.
+- Size 5,506,342 bytes; MD5 16717bb9ee36e7fccac09573df215820.
+
+Device checks still owed (first install on the user's Infinix Hot 40):
+(a) the ⋮ / long-press popup opens CENTERED with the pop-in animation on
+every list (Music, Videos, Home, Folders, playlists, search) and every
+action in it works; (b) Edit Profile shows the dark 3D card with the
+gradient Save button (not the old grey box) and name/photo save correctly;
+(c) no song row anywhere shows a blank artwork square — placeholders
+appear for songs without album art, and the same song always gets the
+same placeholder; (d) the playing song's row shows the mini EQ bars,
+animating while playing and frozen when paused, moving to the next song
+on track change; (e) the SONORA header is gradient + centered on all
+tabs; (f) the Vault PIN screen shows the full description text with no
+"…"; (g) the Music tab no longer shows the chunky fast-scroll pill on
+the right edge; (h) ads still fail silently (account unverified) and the
+banner area collapses exactly as in v3.2.

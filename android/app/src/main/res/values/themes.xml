@@ -8,6 +8,9 @@
         <item name="android:textColorPrimary">@color/text_main</item>
         <item name="android:textColorSecondary">@color/text_secondary</item>
         <item name="android:fontFamily">sans</item>
+        <!-- v3.3: every AlertDialog in the app gets the colourful 3D box look
+             (gradient border, violet fill, pop-in animation) — no grey boxes. -->
+        <item name="android:alertDialogTheme">@style/SonoraDialog</item>
     </style>
 
     <style name="Theme.Sonora.Splash" parent="@style/Theme.Sonora">
@@ -24,5 +27,20 @@
     <style name="SonoraSheetAnim">
         <item name="android:windowEnterAnimation">@anim/sheet_in</item>
         <item name="android:windowExitAnimation">@anim/sheet_out</item>
+    </style>
+
+    <!-- Pop animation for centered "3D box" dialogs (v3.3). -->
+    <style name="SonoraPopAnim">
+        <item name="android:windowEnterAnimation">@anim/dialog_pop_in</item>
+        <item name="android:windowExitAnimation">@anim/dialog_pop_out</item>
+    </style>
+
+    <!-- v3.3 dialog theme: the shared 3D colourful box for all AlertDialogs. -->
+    <style name="SonoraDialog" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/bg_dialog_3d</item>
+        <item name="android:windowAnimationStyle">@style/SonoraPopAnim</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:textColorPrimary">@color/text_main</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
     </style>
 </resources>

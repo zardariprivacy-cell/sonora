@@ -16,7 +16,7 @@ public class HelpActivity extends Activity {
         Ui.init(this);
 
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Theme.BG);
+        scroll.setBackground(Ui.appBg());
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(Ui.dp(16), Ui.dp(14), Ui.dp(16), Ui.dp(28));

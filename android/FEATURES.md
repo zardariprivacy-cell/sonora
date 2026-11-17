@@ -201,3 +201,75 @@ Nothing here is claimed as device-tested — see TESTING-REPORT.md.
   remains. Signing cert unchanged (SHA-256
   066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050), so it
   installs over v3.0. Drive file replaced in place, size/MD5 verified.
+
+---
+
+## v3.3 (versionCode 13, Nov 17 2026) — "Everything 3D, colourful, centered"
+
+A polish pass driven by the user's v3.2 phone screenshots and his words:
+"3D boxes banao, middle main rakho, colourful boxes banao, singing wali
+vibe aani chahye… sara kuch 3D hona chahye" + "audio waly songs hain unka
+logo to lagao" (songs need artwork). No feature was removed; everything
+from v3.2 (theme/profile, timeline fix, AdMob, vault, extraction, PiP,
+sheet actions) is preserved with the same ad unit IDs.
+
+- **Centered 3D popup (MediaSheet):** the ⋮ / long-press sheet is no longer
+  a bottom sheet — it opens as a CENTERED popup card (gravity center,
+  62% dim backdrop, tap-outside to dismiss) with a layered 3D background
+  (Primary→Accent gradient border + top-lit violet fill + white sheen),
+  24dp elevation, a pop-in animation (scale 0.88→1 + fade, 190ms), a
+  colourful gradient header (artwork/logo + title + metadata) and action
+  rows whose icons sit in colourful gradient badges. Every existing action
+  (Play, Play Next, Add to Queue, favorites, playlists, Share, Details,
+  Rename, vault, delete, …) works exactly as before.
+- **All dialogs themed (new `Dialogs` helper):** every dialog in the app —
+  Edit Profile, delete confirmations, Details, playlist pickers, sleep
+  timer, rename, sort pickers, video speed/aspect/audio/subtitle menus,
+  queue, clear-history, vault PIN change/delete — now renders as the same
+  centered 3D card with gradient primary buttons. Edit Profile specifically
+  is a dark #211A35-family card, rounded, with a themed input and a
+  gradient SAVE button (the v3.2 screenshot showed a plain grey stock
+  dialog). A `SonoraDialog` alert-dialog theme in themes.xml backstops any
+  remaining stock dialog so the grey look cannot come back.
+- **Colourful 3D everywhere:** `Ui.cardBg()` is now a layered 3D drawable
+  (gradient edge #9B6BFF→#C084FC, top highlight, card fill) so every list
+  card, grid cell and section card in the app lifted at once, plus real
+  elevation shadows on rows/cards. Icon chips in grids, menus, settings
+  rows, folder rows and sheet rows sit in colourful gradient badges that
+  rotate through six harmonious gradients (violet, pink, magenta, indigo,
+  teal-blue) picked deterministically per label.
+- **Centered gradient brand header:** the toolbar on every tab now shows
+  "SONORA" in a Primary→Accent gradient, CENTERED at the top, with the
+  tagline centered under it and search floating at the right edge.
+- **Folders tab:** the storage card is a colourful 3D box with a gradient
+  storage badge; "Open a folder" and "Last granted folder" are 3D card
+  rows with gradient folder badges; folder rows use gradient folder badges
+  + elevation; the section header carries the EQ-bars decoration.
+  FolderMediaActivity inherits the card/artwork treatment automatically.
+- **Song artwork / logo (new `Artwork`):** audio rows never show a blank
+  square again. Order: real album art → generated colourful placeholder —
+  a gradient from the violet/pink/indigo/blue family chosen by the song
+  title's hash (same song, same art, every time), a white music-note
+  glyph and a subtle EQ-bars motif, drawn once and cached in the existing
+  LruCache. Videos without a thumbnail get the analogous gradient + play
+  glyph. Applies everywhere art appears: Music list, Home rows, search,
+  queue, mini-player, popup header, playlists, Now Playing.
+- **Music vibe:** the currently-playing song's row shows small animated
+  EQ bars (the existing AnimatedBarsView in miniature; frozen frame when
+  paused) in both the Music list and programmatic rows; Home and Folders
+  section headers get a tiny gradient EQ-bars decoration.
+- **Small fixes:** the Vault PIN screen description now wraps in full (it
+  was truncated with "…" because the label forced one line); the same
+  wrap fix applied to the vault header, Home permission card, empty-state
+  messages and History. The Music tab's stray right-edge pill (the OEM
+  fast-scroll thumb in the screenshot) is gone — fast scroll disabled,
+  thin fading scrollbar instead.
+- Build: `build-v33.sh` (derived from build-v32.sh; keeps the
+  `${applicationId}` substitution + assert and the AdMob integration).
+  Delivery APK verified: vc13 / 3.3, no literal `${applicationId}` in the
+  binary manifest, providers carry the `com.nawazishali.sonora` prefix,
+  signing cert unchanged (SHA-256
+  066d5a8fc005469a587e90d44a8ffd6a35db79897fd67cc7127c8c59a3392050), so it
+  installs over v3.2. Size 5,506,342 bytes, MD5
+  16717bb9ee36e7fccac09573df215820. Compile/static-verified only — NOT
+  device-tested (see TESTING-REPORT.md).

@@ -39,8 +39,19 @@ public class MediaAdapter extends BaseAdapter {
         title.setTextColor(Theme.TEXT);
         sub.setText(it.subtitle());
         sub.setTextColor(Theme.TEXT2);
-        v.setBackgroundColor(Theme.CARD);
+        v.setBackground(Ui.cardBg());
+        v.setElevation(Ui.dp(3));
         ImageLoader.load(ctx, it, thumb);
+        // v3.3 music vibe: mini EQ bars on the currently-playing song's row.
+        View eq = v.findViewById(R.id.eqbars);
+        if (eq != null) {
+            MusicService svc = MusicService.instance;
+            boolean current = !grid && !it.video && svc != null && svc.current() != null
+                    && it.key().equals(svc.current().key());
+            eq.setVisibility(current ? View.VISIBLE : View.GONE);
+            if (current && eq instanceof AnimatedBarsView)
+                ((AnimatedBarsView) eq).setAnimating(svc.isPlaying());
+        }
         boolean isFav = Db.get(ctx).isFavorite(it.key());
         fav.setVisibility(isFav ? View.VISIBLE : View.GONE);
         if (isFav) fav.setColorFilter(Theme.ACCENT);

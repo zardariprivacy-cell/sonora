@@ -1,7 +1,6 @@
 package com.nawazishali.sonora;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.KeyguardManager;
 import android.app.PendingIntent;
 import android.content.ContentValues;
@@ -47,7 +46,7 @@ public class VaultActivity extends Activity {
         Theme.init(this);
         Ui.init(this);
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(Theme.BG);
+        scroll.setBackground(Ui.appBg());
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(Ui.dp(18), Ui.dp(16), Ui.dp(18), Ui.dp(24));
@@ -79,8 +78,10 @@ public class VaultActivity extends Activity {
         content.addView(center);
 
         if (!Vault.hasPin(this)) {
-            TextView m = Ui.sub(this, "Create a PIN to protect your private media. Files are encrypted with AES-256 on this device.");
+            // v3.3: was Ui.sub() (single line) — the text was cut off with "…".
+            TextView m = Ui.bodyWrap(this, "Create a PIN to protect your private media. Files are encrypted with AES-256 on this device.");
             m.setGravity(Gravity.CENTER);
+            m.setPadding(0, Ui.dp(6), 0, Ui.dp(2));
             content.addView(m);
             final EditText pin1 = pinField("New PIN (4+ digits)");
             final EditText pin2 = pinField("Confirm PIN");
@@ -157,7 +158,7 @@ public class VaultActivity extends Activity {
         bar.addView(h);
         bar.addView(Ui.icon(this, R.drawable.ic_lock, 22, Theme.ACCENT));
         content.addView(bar);
-        content.addView(Ui.sub(this, "Files here are encrypted and hidden from the normal library."));
+        content.addView(Ui.bodyWrap(this, "Files here are encrypted and hidden from the normal library."));
 
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -210,38 +211,33 @@ public class VaultActivity extends Activity {
         box.addView(oldPin);
         final EditText newPin = pinField("New PIN");
         box.addView(newPin);
-        new AlertDialog.Builder(this)
-                .setTitle("Change PIN")
-                .setView(box)
-                .setPositiveButton("Change", (d, w) -> {
+        new Dialogs.Builder(this)
+                .title("Change PIN")
+                .content(box)
+                .button("Cancel", Dialogs.BTN_GHOST, (Runnable) null)
+                .button("Change", Dialogs.BTN_PRIMARY, () -> {
                     if (!Vault.verifyPin(this, oldPin.getText().toString())) { toast("Current PIN is wrong"); return; }
                     if (newPin.getText().toString().length() < 4) { toast("New PIN too short"); return; }
                     try { Vault.setPin(this, newPin.getText().toString()); toast("PIN changed"); }
                     catch (Exception e) { toast("Could not change PIN"); }
                 })
-                .setNegativeButton("Cancel", null)
                 .show();
     }
 
     private void vaultItemMenu(final long id, final String name, final String mime,
                                 final String encFile, final boolean video) {
-        new AlertDialog.Builder(this)
-                .setTitle(name)
-                .setItems(new String[]{"Play", "Export back to library", "Delete from vault"}, (d, w) -> {
+        Dialogs.list(this, name,
+                new String[]{"Play", "Export back to library", "Delete from vault"}, w -> {
                     if (w == 0) playVaultItem(id, name, mime, video);
                     else if (w == 1) exportItem(name, mime, encFile, video);
-                    else new AlertDialog.Builder(this)
-                            .setTitle("Delete from vault?")
-                            .setMessage("The encrypted file will be permanently deleted.")
-                            .setPositiveButton("Delete", (dd, ww) -> {
+                    else Dialogs.confirm(this, "Delete from vault?",
+                            "The encrypted file will be permanently deleted.",
+                            "Delete", true, () -> {
                                 new File(encFile).delete();
                                 Db.get(this).deleteVaultItem(id);
                                 showVault();
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
-                })
-                .show();
+                            });
+                });
     }
 
     // ---------------- import ----------------

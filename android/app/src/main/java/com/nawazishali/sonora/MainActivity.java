@@ -53,23 +53,35 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Theme.BG);
+        root.setBackground(Ui.appBg());
 
-        // Toolbar
-        LinearLayout bar = new LinearLayout(this);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(Ui.dp(16), Ui.dp(12), Ui.dp(10), Ui.dp(10));
+        // Toolbar — v3.3: the SONORA wordmark is now gradient-coloured and
+        // CENTERED at the top (the user's request), tagline centered under it,
+        // search floating at the right edge.
+        FrameLayout bar = new FrameLayout(this);
+        bar.setPadding(Ui.dp(8), Ui.dp(12), Ui.dp(8), Ui.dp(8));
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
-        brand.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        TextView name = Ui.text(this, "SONORA", 19, Theme.TEXT, true);
+        brand.setGravity(Gravity.CENTER_HORIZONTAL);
+        FrameLayout.LayoutParams blp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        blp.gravity = Gravity.CENTER_HORIZONTAL | Gravity.CENTER_VERTICAL;
+        brand.setLayoutParams(blp);
+        TextView name = Ui.text(this, "SONORA", 21, Theme.TEXT, true);
+        name.setGravity(Gravity.CENTER);
+        Ui.brandify(name);
         brand.addView(name);
-        brand.addView(Ui.sub(this, "Your Complete Media Experience"));
+        TextView tag = Ui.sub(this, "Your Complete Media Experience");
+        tag.setGravity(Gravity.CENTER);
+        brand.addView(tag);
         bar.addView(brand);
         LinearLayout searchBtn = new LinearLayout(this);
         searchBtn.setGravity(Gravity.CENTER);
         searchBtn.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(10));
+        FrameLayout.LayoutParams sblp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        sblp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+        searchBtn.setLayoutParams(sblp);
         searchBtn.addView(Ui.icon(this, R.drawable.ic_search, 23, Theme.TEXT));
         searchBtn.setOnClickListener(v -> startActivity(new Intent(this, SearchActivity.class)));
         bar.addView(searchBtn);
@@ -176,11 +188,18 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
             item.setOrientation(LinearLayout.VERTICAL);
             item.setGravity(Gravity.CENTER);
             item.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            // Icon sits in a pill holder: the selected tab's pill glows with
+            // the primary gradient, like the reference design's bottom nav.
+            LinearLayout iconWrap = new LinearLayout(this);
+            iconWrap.setGravity(Gravity.CENTER);
+            iconWrap.setPadding(Ui.dp(16), Ui.dp(4), Ui.dp(16), Ui.dp(4));
+            iconWrap.setTag("iconWrap");
             ImageView iv = new ImageView(this);
             iv.setImageResource(icons[i]);
-            iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(24), Ui.dp(24)));
+            iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(23), Ui.dp(23)));
             iv.setTag("icon");
-            item.addView(iv);
+            iconWrap.addView(iv);
+            item.addView(iconWrap);
             TextView t = Ui.text(this, labels[i], 11, Theme.TEXT2, false);
             t.setGravity(Gravity.CENTER);
             t.setTag("label");
@@ -207,11 +226,19 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
         v.startAnimation(anim);
         for (int i = 0; i < 5; i++) {
             boolean active = i == idx;
+            LinearLayout iconWrap = (LinearLayout) navItems[i].findViewWithTag("iconWrap");
             ImageView iv = (ImageView) navItems[i].findViewWithTag("icon");
             TextView t = (TextView) navItems[i].findViewWithTag("label");
-            iv.setColorFilter(active ? Theme.ACCENT : Theme.TEXT2);
+            iconWrap.setBackground(active ? Ui.gradientBg(18) : null);
+            iv.setColorFilter(active ? 0xFFFFFFFF : Theme.TEXT2);
             t.setTextColor(active ? Theme.ACCENT : Theme.TEXT2);
         }
+    }
+
+    /** Home's Favorites chip: switch to the Music tab already showing Favorites. */
+    public void openMusicFavorites() {
+        ((MusicTab) tabs[TAB_MUSIC]).presetFavorites();
+        showTab(TAB_MUSIC);
     }
 
     private void refreshMini() {
@@ -230,8 +257,15 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
         for (Tab t : tabs) if (t != null) t.refresh();
     }
 
-    @Override public void onTrackChanged(MediaItem item) { refreshMini(); }
-    @Override public void onPlaybackChanged(boolean playing) { refreshMini(); }
+    @Override public void onTrackChanged(MediaItem item) {
+        refreshMini();
+        // v3.3: keep the Music tab's now-playing EQ bars on the right row.
+        if (tabs != null && tabs[TAB_MUSIC] != null && currentTab == TAB_MUSIC) tabs[TAB_MUSIC].refresh();
+    }
+    @Override public void onPlaybackChanged(boolean playing) {
+        refreshMini();
+        if (tabs != null && tabs[TAB_MUSIC] != null && currentTab == TAB_MUSIC) tabs[TAB_MUSIC].refresh();
+    }
     @Override public void onProgress(long pos, long dur) { }
 
     // ---------------- system callbacks ----------------

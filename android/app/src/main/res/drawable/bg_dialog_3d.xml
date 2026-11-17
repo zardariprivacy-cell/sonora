@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sonora v3.3 "3D box" dialog background: a Primary→Accent gradient border,
+     a violet fill lit from the top, and a soft white sheen over everything.
+     Used as the window background of every AlertDialog via SonoraDialog. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- gradient border -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="#9B6BFF"
+                android:endColor="#C084FC" />
+            <corners android:radius="24dp" />
+        </shape>
+    </item>
+
+    <!-- fill: elevated violet at the top fading into the card colour -->
+    <item
+        android:left="2dp"
+        android:top="2dp"
+        android:right="2dp"
+        android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#372A5C"
+                android:endColor="#211A35" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+
+    <!-- top sheen -->
+    <item
+        android:left="2dp"
+        android:top="2dp"
+        android:right="2dp"
+        android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#24FFFFFF"
+                android:endColor="#00FFFFFF" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+</layer-list>

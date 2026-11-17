@@ -1,7 +1,6 @@
 package com.nawazishali.sonora;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -11,6 +10,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.ScaleAnimation;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -28,6 +28,8 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
     private MusicService svc;
     private boolean bound;
     private ImageView art, playBtn, shuffleBtn, repeatBtn;
+    private View ringView, noteIcon;
+    private android.view.animation.RotateAnimation ringAnim;
     private LinearLayout favBtn;
     private TextView title, artist, posLabel, durLabel, lyricsView, emptyLabel;
     private SeekBar seek;
@@ -65,7 +67,7 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Theme.BG);
+        root.setBackground(Ui.appBg());
         root.setPadding(Ui.dp(20), Ui.dp(14), Ui.dp(20), Ui.dp(18));
 
         LinearLayout bar = new LinearLayout(this);
@@ -87,14 +89,39 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         emptyLabel.setVisibility(View.GONE);
         root.addView(emptyLabel);
 
+        // Circular artwork inside a glowing gradient ring (reference style):
+        // ring disc behind, circle-cropped art on top, a slow rotation on the
+        // ring while playing. No artwork -> gradient disc + music-note icon.
+        LinearLayout discHolder = new LinearLayout(this);
+        discHolder.setGravity(Gravity.CENTER_HORIZONTAL);
+        FrameLayout disc = new FrameLayout(this);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.dp(252), Ui.dp(252));
+        dlp.setMargins(0, Ui.dp(14), 0, Ui.dp(6));
+        disc.setLayoutParams(dlp);
+        ringView = new View(this);
+        ringView.setBackground(Ui.ringDrawable());
+        ringView.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        disc.addView(ringView);
         art = new ImageView(this);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setBackground(Ui.rounded(Theme.ELEVATED, 20));
-        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(280));
-        alp.setMargins(0, Ui.dp(16), 0, Ui.dp(8));
-        art.setLayoutParams(alp);
-        root.addView(art);
+        FrameLayout.LayoutParams artLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        artLp.setMargins(Ui.dp(11), Ui.dp(11), Ui.dp(11), Ui.dp(11));
+        art.setLayoutParams(artLp);
+        disc.addView(art);
+        noteIcon = Ui.icon(this, R.drawable.ic_music, 64, Theme.TEXT2);
+        FrameLayout.LayoutParams nlp = new FrameLayout.LayoutParams(Ui.dp(64), Ui.dp(64));
+        nlp.gravity = Gravity.CENTER;
+        noteIcon.setLayoutParams(nlp);
+        disc.addView(noteIcon);
+        discHolder.addView(disc);
+        root.addView(discHolder);
+        ringAnim = new android.view.animation.RotateAnimation(0f, 360f,
+                Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+        ringAnim.setDuration(14000);
+        ringAnim.setRepeatCount(Animation.INFINITE);
+        ringAnim.setInterpolator(new android.view.animation.LinearInterpolator());
 
         visualizer = new VisualizerView(this);
         visualizer.setLayoutParams(new LinearLayout.LayoutParams(
@@ -116,6 +143,7 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         seekRow.setGravity(Gravity.CENTER_VERTICAL);
         posLabel = Ui.text(this, "0:00", 12, Theme.TEXT2, false);
         seek = new SeekBar(this);
+        styleSeek(seek);
         seek.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         durLabel = Ui.text(this, "0:00", 12, Theme.TEXT2, false);
         seekRow.addView(posLabel); seekRow.addView(seek); seekRow.addView(durLabel);
@@ -142,19 +170,35 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         controls.setGravity(Gravity.CENTER);
         shuffleBtn = controlBtn(R.drawable.ic_shuffle, v -> { if (svc != null) { svc.setShuffle(!svc.isShuffle()); refreshModes(); } });
         ImageView prev = controlBtn(R.drawable.ic_prev, v -> { if (svc != null) svc.prev(); });
+        // Big round gradient play/pause with a soft radial glow behind it.
+        FrameLayout playWrap = new FrameLayout(this);
+        LinearLayout.LayoutParams wlp = new LinearLayout.LayoutParams(Ui.dp(96), Ui.dp(96));
+        wlp.setMargins(Ui.dp(8), 0, Ui.dp(8), 0);
+        playWrap.setLayoutParams(wlp);
+        View glow = new View(this);
+        android.graphics.drawable.GradientDrawable glowD = new android.graphics.drawable.GradientDrawable();
+        glowD.setGradientType(android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT);
+        glowD.setGradientRadius(Ui.dp(48));
+        glowD.setColors(new int[]{Ui.withAlpha(Theme.PRIMARY, 130), Ui.withAlpha(Theme.PRIMARY, 0)});
+        glowD.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        glow.setBackground(glowD);
+        glow.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        playWrap.addView(glow);
         playBtn = new ImageView(this);
         playBtn.setImageResource(R.drawable.ic_play);
         playBtn.setColorFilter(0xFFFFFFFF);
-        playBtn.setBackground(Ui.gradientBg(32));
-        playBtn.setPadding(Ui.dp(16), Ui.dp(16), Ui.dp(16), Ui.dp(16));
-        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(Ui.dp(64), Ui.dp(64));
-        plp.setMargins(Ui.dp(14), 0, Ui.dp(14), 0);
+        playBtn.setBackground(Ui.circleGradient());
+        playBtn.setPadding(Ui.dp(19), Ui.dp(19), Ui.dp(19), Ui.dp(19));
+        FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(Ui.dp(72), Ui.dp(72));
+        plp.gravity = Gravity.CENTER;
         playBtn.setLayoutParams(plp);
         playBtn.setOnClickListener(v -> { if (svc != null) svc.toggle(); });
         PressFx.apply(playBtn);
+        playWrap.addView(playBtn);
         ImageView next = controlBtn(R.drawable.ic_next, v -> { if (svc != null) svc.next(true); });
         repeatBtn = controlBtn(R.drawable.ic_repeat, v -> { if (svc != null) { svc.cycleRepeat(); refreshModes(); } });
-        controls.addView(shuffleBtn); controls.addView(prev); controls.addView(playBtn);
+        controls.addView(shuffleBtn); controls.addView(prev); controls.addView(playWrap);
         controls.addView(next); controls.addView(repeatBtn);
         root.addView(controls);
 
@@ -182,6 +226,38 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         root.addView(lyricsScroll);
 
         setContentView(root);
+    }
+
+    /** Slim themed seek line: thin track, gradient progress, small gradient thumb. */
+    private void styleSeek(SeekBar s) {
+        android.graphics.drawable.GradientDrawable track = seekLine(Theme.BORDER);
+        android.graphics.drawable.GradientDrawable secondary = seekLine(Ui.withAlpha(Theme.ACCENT, 110));
+        android.graphics.drawable.GradientDrawable progLine = new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{Theme.PRIMARY, Theme.ACCENT});
+        progLine.setCornerRadius(Ui.dp(2));
+        progLine.setSize(1, Ui.dp(4));
+        android.graphics.drawable.ClipDrawable prog = new android.graphics.drawable.ClipDrawable(
+                progLine, Gravity.LEFT, android.graphics.drawable.ClipDrawable.HORIZONTAL);
+        android.graphics.drawable.LayerDrawable ld = new android.graphics.drawable.LayerDrawable(
+                new android.graphics.drawable.Drawable[]{track, secondary, prog});
+        ld.setId(0, android.R.id.background);
+        ld.setId(1, android.R.id.secondaryProgress);
+        ld.setId(2, android.R.id.progress);
+        s.setProgressDrawable(ld);
+        android.graphics.drawable.GradientDrawable thumb = Ui.circleGradient();
+        thumb.setSize(Ui.dp(15), Ui.dp(15));
+        thumb.setStroke(Ui.dp(2), 0xFFFFFFFF);
+        s.setThumb(thumb);
+        s.setPadding(Ui.dp(8), 0, Ui.dp(8), 0);
+    }
+
+    private android.graphics.drawable.GradientDrawable seekLine(int color) {
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(Ui.dp(2));
+        g.setSize(1, Ui.dp(4));
+        return g;
     }
 
     private ImageView controlBtn(int res, View.OnClickListener click) {
@@ -268,10 +344,7 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         if (q.isEmpty()) { Toast.makeText(this, "Queue is empty", Toast.LENGTH_SHORT).show(); return; }
         String[] names = new String[q.size()];
         for (int i = 0; i < q.size(); i++) names[i] = (i == svc.getIndex() ? "▶ " : "") + q.get(i).title;
-        new AlertDialog.Builder(this)
-                .setTitle("Play queue")
-                .setItems(names, (d, w) -> svc.playAt(w))
-                .show();
+        Dialogs.list(this, "Play queue", names, w -> svc.playAt(w));
     }
 
     private void toggleLyrics() {
@@ -342,7 +415,8 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         posLabel.setText("0:00");
         title.setText(item.title);
         artist.setText(item.subtitle());
-        ImageLoader.load(this, item, art);
+        ImageLoader.loadRound(this, item, art,
+                hasArt -> { if (noteIcon != null) noteIcon.setVisibility(hasArt ? View.GONE : View.VISIBLE); });
         lrc = null; lastLrcIndex = -1;
         if (lyricsScroll.getVisibility() == View.VISIBLE) loadLyrics();
         refreshModes();
@@ -357,6 +431,12 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
                     Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
             anim.setDuration(160);
             playBtn.startAnimation(anim);
+        }
+        // The gradient ring slowly rotates while music plays; it rests when paused.
+        if (ringView != null && ringAnim != null) {
+            if (playing) {
+                if (ringView.getAnimation() == null) ringView.startAnimation(ringAnim);
+            } else ringView.clearAnimation();
         }
     }
 

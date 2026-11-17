@@ -1,14 +1,11 @@
 package com.nawazishali.sonora;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
-import android.text.InputType;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -115,63 +112,44 @@ public class ItemMenu {
         final List<String> names = db.playlistNames();
         List<String> opts = new ArrayList<>(names);
         opts.add("+ New playlist");
-        new AlertDialog.Builder(act)
-                .setTitle("Add to playlist")
-                .setItems(opts.toArray(new String[0]), (d, w) -> {
-                    if (w == opts.size() - 1) {
-                        nameDialog(act, "New playlist", name -> {
-                            long pid = db.createPlaylist(name);
-                            db.addToPlaylist(pid, it);
-                            Toast.makeText(act, "Added to " + name, Toast.LENGTH_SHORT).show();
-                        });
-                    } else {
-                        db.addToPlaylist(pls.get(w)[0], it);
-                        Toast.makeText(act, "Added to " + names.get(w), Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .show();
+        Dialogs.list(act, "Add to playlist", opts.toArray(new String[0]), w -> {
+            if (w == opts.size() - 1) {
+                nameDialog(act, "New playlist", name -> {
+                    long pid = db.createPlaylist(name);
+                    db.addToPlaylist(pid, it);
+                    Toast.makeText(act, "Added to " + name, Toast.LENGTH_SHORT).show();
+                });
+            } else {
+                db.addToPlaylist(pls.get(w)[0], it);
+                Toast.makeText(act, "Added to " + names.get(w), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     public interface NameCallback { void onName(String name); }
 
     public static void nameDialog(Activity act, String title, final NameCallback cb) {
-        final EditText input = new EditText(act);
-        input.setInputType(InputType.TYPE_CLASS_TEXT);
-        input.setSingleLine(true);
-        new AlertDialog.Builder(act)
-                .setTitle(title)
-                .setView(input)
-                .setPositiveButton("OK", (d, w) -> {
-                    String n = input.getText().toString().trim();
-                    if (!n.isEmpty()) cb.onName(n);
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        Dialogs.input(act, title, "Name", "", "OK", text -> {
+            String n = text.trim();
+            if (!n.isEmpty()) cb.onName(n);
+        });
     }
 
     static void renameDialog(final Activity act, final MediaItem it, final Runnable onChanged) {
-        final EditText input = new EditText(act);
-        input.setText(it.title);
-        input.setSingleLine(true);
-        new AlertDialog.Builder(act)
-                .setTitle("Rename")
-                .setView(input)
-                .setPositiveButton("Rename", (d, w) -> {
-                    String n = input.getText().toString().trim();
-                    if (!n.isEmpty()) {
-                        // Keep the original extension when renaming the display name.
-                        String ext = "";
-                        String old = it.path;
-                        if (old != null && old.contains(".")) ext = old.substring(old.lastIndexOf('.'));
-                        String display = n.endsWith(ext) || ext.isEmpty() ? n : n + ext;
-                        boolean ok = MediaActions.rename(act, it, display);
-                        Toast.makeText(act, ok ? "Renamed" : "Rename not permitted for this file",
-                                Toast.LENGTH_SHORT).show();
-                        if (ok) { Library.scanAsync(act); if (onChanged != null) onChanged.run(); }
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+        Dialogs.input(act, "Rename", "Name", it.title, "Rename", text -> {
+            String n = text.trim();
+            if (!n.isEmpty()) {
+                // Keep the original extension when renaming the display name.
+                String ext = "";
+                String old = it.path;
+                if (old != null && old.contains(".")) ext = old.substring(old.lastIndexOf('.'));
+                String display = n.endsWith(ext) || ext.isEmpty() ? n : n + ext;
+                boolean ok = MediaActions.rename(act, it, display);
+                Toast.makeText(act, ok ? "Renamed" : "Rename not permitted for this file",
+                        Toast.LENGTH_SHORT).show();
+                if (ok) { Library.scanAsync(act); if (onChanged != null) onChanged.run(); }
+            }
+        });
     }
 
     static void detailsDialog(Activity act, MediaItem it) {
@@ -196,22 +174,15 @@ public class ItemMenu {
         sb.append("Added: ").append(Ui.fmtDate(it.dateAdded)).append('\n');
         sb.append("Folder: ").append(it.bucketName).append('\n');
         if (!it.path.isEmpty()) sb.append("Path: ").append(it.path);
-        new AlertDialog.Builder(act)
-                .setTitle(it.title)
-                .setMessage(sb.toString())
-                .setPositiveButton("OK", null)
-                .show();
+        Dialogs.message(act, it.title, sb.toString());
     }
 
     static void deleteDialog(final Activity act, final MediaItem it, final Runnable onChanged) {
-        new AlertDialog.Builder(act)
-                .setTitle("Delete this file?")
-                .setMessage("\"" + it.title + "\" will be permanently deleted from your device.")
-                .setPositiveButton("Delete", (d, w) -> MediaActions.delete(act, it, ok -> {
+        Dialogs.confirm(act, "Delete this file?",
+                "\"" + it.title + "\" will be permanently deleted from your device.",
+                "Delete", true, () -> MediaActions.delete(act, it, ok -> {
                     if (ok) { Library.scanAsync(act); if (onChanged != null) onChanged.run(); }
                     else Toast.makeText(act, "Could not delete this file", Toast.LENGTH_SHORT).show();
-                }))
-                .setNegativeButton("Cancel", null)
-                .show();
+                }));
     }
 }
