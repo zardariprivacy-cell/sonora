@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Midnight Violet (dark, primary theme) -->
+    <color name="bg">#100719</color>
+    <color name="card">#1C1030</color>
+    <color name="elevated">#29183C</color>
+    <color name="primary">#813CFF</color>
+    <color name="secondary">#C45BFF</color>
+    <color name="accent">#E84BCB</color>
+    <color name="text_main">#FFFFFF</color>
+    <color name="text_secondary">#B8AEC5</color>
+    <color name="border">#382849</color>
+
+    <!-- Light variant of the same palette -->
+    <color name="bg_light">#F5F1FA</color>
+    <color name="card_light">#FFFFFF</color>
+    <color name="elevated_light">#EDE6F7</color>
+    <color name="text_main_light">#1B1030</color>
+    <color name="text_secondary_light">#5E5470</color>
+    <color name="border_light">#DCD2EC</color>
+</resources>

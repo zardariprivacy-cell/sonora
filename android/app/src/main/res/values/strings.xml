@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sonora</string>
+    <string name="tagline">Your Complete Media Experience</string>
+    <string name="channel_playback">Sonora playback</string>
+</resources>
