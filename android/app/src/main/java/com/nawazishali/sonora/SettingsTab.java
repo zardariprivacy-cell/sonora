@@ -6,14 +6,19 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.view.View;
-import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
-/** Settings: theme, equalizer, sleep timer, vault, storage, permissions, about. */
+import java.util.List;
+
+/**
+ * Settings tab, v3.1: rebuilt in the element style of the user's reference
+ * screenshots — a 3-column grid of large line icons with labels, then a clean
+ * icon list with thin dividers. Every cell and row opens a real screen or
+ * performs a real action; no coins/VIP/ads (Sonora has none).
+ */
 public class SettingsTab extends Tab {
     private LinearLayout content;
 
@@ -36,80 +41,107 @@ public class SettingsTab extends Tab {
         content.removeAllViews();
         content.addView(Ui.title(act, "Settings"));
         TextView tag = Ui.sub(act, "Your Complete Media Experience");
-        tag.setPadding(0, Ui.dp(2), 0, Ui.dp(8));
+        tag.setPadding(0, Ui.dp(2), 0, Ui.dp(6));
         content.addView(tag);
 
-        content.addView(Ui.section(act, "Appearance"));
-        LinearLayout themeRow = new LinearLayout(act);
-        themeRow.setOrientation(LinearLayout.HORIZONTAL);
-        themeRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        themeRow.setBackground(Ui.cardBg());
-        themeRow.setPadding(Ui.dp(14), Ui.dp(13), Ui.dp(14), Ui.dp(13));
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        tlp.setMargins(0, 0, 0, Ui.dp(8));
-        themeRow.setLayoutParams(tlp);
-        themeRow.addView(Ui.icon(act, R.drawable.ic_brightness, 22, Theme.SECONDARY));
-        LinearLayout texts = new LinearLayout(act);
-        texts.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams xlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        xlp.setMargins(Ui.dp(12), 0, 0, 0);
-        texts.setLayoutParams(xlp);
-        texts.addView(Ui.text(act, "Light theme", 15, Theme.TEXT, false));
-        texts.addView(Ui.sub(act, Theme.LIGHT ? "Light variant is on" : "Midnight Violet dark theme is on"));
-        themeRow.addView(texts);
-        Switch sw = new Switch(act);
-        sw.setChecked(Theme.LIGHT);
-        sw.setOnCheckedChangeListener((CompoundButton b, boolean on) -> {
-            Theme.setLight(act, on);
-            act.recreate();
-        });
-        themeRow.addView(sw);
-        content.addView(themeRow);
+        // ---- Icon grid (3 x 3), all real functions ----
+        content.addView(Rows.gridRow(act,
+                Rows.gridCell(act, R.drawable.ic_shield, "Private Vault",
+                        v -> act.startActivity(new Intent(act, VaultActivity.class))),
+                Rows.gridCell(act, R.drawable.ic_extract, "Extract Audio",
+                        v -> pickVideoForExtract()),
+                Rows.gridCell(act, R.drawable.ic_sd, "Storage",
+                        v -> act.startActivity(new Intent(act, StorageActivity.class)))));
+        content.addView(Rows.gridRow(act,
+                Rows.gridCell(act, R.drawable.ic_folder, "Folders",
+                        v -> ((MainActivity) act).showTab(MainActivity.TAB_FOLDERS)),
+                Rows.gridCell(act, R.drawable.ic_brightness, "Theme",
+                        v -> toggleTheme()),
+                Rows.gridCell(act, R.drawable.ic_history, "History",
+                        v -> act.startActivity(new Intent(act, HistoryActivity.class)))));
+        content.addView(Rows.gridRow(act,
+                Rows.gridCell(act, R.drawable.ic_share, "Share App",
+                        v -> Ui.shareApp(act)),
+                Rows.gridCell(act, R.drawable.ic_files, "Large Files",
+                        v -> act.startActivity(new Intent(act, StorageActivity.class).putExtra("focus", "large"))),
+                Rows.gridCell(act, R.drawable.ic_refresh, "Refresh Library",
+                        v -> { Library.scanAsync(act); Toast.makeText(act, "Refreshing library…", Toast.LENGTH_SHORT).show(); })));
 
-        content.addView(Ui.section(act, "Playback"));
-        content.addView(Rows.settingRow(act, R.drawable.ic_equalizer, "Equalizer",
-                "5-band equalizer, presets and bass boost",
-                v -> act.startActivity(new Intent(act, EqualizerActivity.class))));
-        content.addView(Rows.settingRow(act, R.drawable.ic_timer, "Sleep timer",
-                "Stop music automatically after a while",
+        content.addView(Rows.sectionBreak(act));
+
+        // ---- Clean icon list ----
+        content.addView(Rows.menuRow(act, R.drawable.ic_brightness, "Theme",
+                Theme.LIGHT ? "Light" : "Dark", v -> toggleTheme()));
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_timer, "Sleep Timer", null,
                 v -> SleepTimerUi.show(act)));
-        content.addView(Rows.settingRow(act, R.drawable.ic_headphones, "Visualizer permission",
-                act.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-                        ? "Granted — spectrum visualizer is active"
-                        : "Needed for the music spectrum visualizer",
-                v -> act.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 102)));
-
-        content.addView(Ui.section(act, "Privacy"));
-        content.addView(Rows.settingRow(act, R.drawable.ic_shield, "Private Vault",
-                "PIN-protected encrypted folder for private media",
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_equalizer, "Equalizer", null,
+                v -> act.startActivity(new Intent(act, EqualizerActivity.class))));
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_shield, "Private Vault", null,
                 v -> act.startActivity(new Intent(act, VaultActivity.class))));
-
-        content.addView(Ui.section(act, "Library"));
-        content.addView(Rows.settingRow(act, R.drawable.ic_sd, "Storage",
-                "Device storage, library sizes and large files",
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_sd, "Storage Dashboard", null,
                 v -> act.startActivity(new Intent(act, StorageActivity.class))));
-        content.addView(Rows.settingRow(act, R.drawable.ic_refresh, "Refresh media library",
-                "Rescan your phone for new songs and videos",
-                v -> { Library.scanAsync(act); Toast.makeText(act, "Refreshing library…", Toast.LENGTH_SHORT).show(); }));
-        content.addView(Rows.settingRow(act, R.drawable.ic_search, "Media permissions",
-                Library.hasAnyPermission(act) ? "Media access granted" : "Media access not granted yet",
-                v -> act.requestPermissions(Library.neededPermissions(), 101)));
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_history, "Playback History", null,
+                v -> act.startActivity(new Intent(act, HistoryActivity.class))));
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_help, "Help", null,
+                v -> act.startActivity(new Intent(act, HelpActivity.class))));
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_info, "About", null,
+                v -> aboutDialog()));
 
-        content.addView(Ui.section(act, "About"));
-        LinearLayout about = new LinearLayout(act);
-        about.setOrientation(LinearLayout.VERTICAL);
-        about.setBackground(Ui.cardBg());
-        about.setPadding(Ui.dp(16), Ui.dp(14), Ui.dp(16), Ui.dp(14));
-        about.addView(Ui.text(act, "Sonora 3.0", 15, Theme.TEXT, true));
-        about.addView(Ui.sub(act, "Your Complete Media Experience"));
-        about.addView(Ui.sub(act, Library.AUDIO.size() + " songs  •  " + Library.VIDEO.size() + " videos on this device"));
-        about.addView(Ui.sub(act, "Offline video & music player. No account, no uploads — your media never leaves your phone."));
-        about.setOnClickListener(v -> new AlertDialog.Builder(act)
+        content.addView(Rows.sectionBreak(act));
+
+        // ---- Permissions (kept from v3.0) ----
+        boolean vizGranted = act.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+        content.addView(Rows.menuRow(act, R.drawable.ic_headphones, "Visualizer Permission",
+                vizGranted ? "Granted" : "Not granted",
+                v -> act.requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 102)));
+        content.addView(Rows.menuDivider(act));
+        content.addView(Rows.menuRow(act, R.drawable.ic_key, "Media Permissions",
+                Library.hasAnyPermission(act) ? "Granted" : "Not granted",
+                v -> act.requestPermissions(Library.neededPermissions(), 101)));
+    }
+
+    private void toggleTheme() {
+        Theme.setLight(act, !Theme.LIGHT);
+        act.recreate();
+    }
+
+    /** Pick a video from the library, then run the real M4A extraction on it. */
+    private void pickVideoForExtract() {
+        final List<MediaItem> videos = Library.VIDEO;
+        if (videos.isEmpty()) {
+            Toast.makeText(act, "No videos in the library yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] names = new String[videos.size()];
+        for (int i = 0; i < videos.size(); i++) names[i] = videos.get(i).title;
+        new AlertDialog.Builder(act)
+                .setTitle("Extract audio from…")
+                .setItems(names, (d, w) -> {
+                    final MediaItem it = videos.get(w);
+                    Toast.makeText(act, "Extracting audio…", Toast.LENGTH_SHORT).show();
+                    AudioExtractor.extract(act, it, (ok, msg) -> {
+                        Toast.makeText(act, msg, Toast.LENGTH_LONG).show();
+                        if (ok) Library.scanAsync(act);
+                    });
+                })
+                .show();
+    }
+
+    private void aboutDialog() {
+        new AlertDialog.Builder(act)
                 .setTitle("Sonora")
-                .setMessage("Version 3.0\n\nAn original Sonora design in Midnight Violet. All playback happens on-device with the Android media framework.")
+                .setMessage("Version 3.1\n\nYour Complete Media Experience\n\n"
+                        + Library.AUDIO.size() + " songs  •  " + Library.VIDEO.size() + " videos on this device\n\n"
+                        + "An original Sonora design in Midnight Violet. Offline video & music player — "
+                        + "no account, no ads, no uploads; your media never leaves your phone.")
                 .setPositiveButton("OK", null)
-                .show());
-        content.addView(about);
+                .show();
     }
 }

@@ -82,17 +82,23 @@ public class HomeTab extends Tab {
             return;
         }
 
-        // Quick access
+        // Quick access — v3.1: icon grid in the same element style as Settings
+        // (large line icons + labels), each cell opening a real tab or screen.
         content.addView(Ui.section(act, "Quick access"));
-        LinearLayout quick = new LinearLayout(act);
-        quick.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout qv = quickCard(R.drawable.ic_video, "Videos", Library.VIDEO.size() + " videos",
-                v -> ((MainActivity) act).showTab(MainActivity.TAB_VIDEOS));
-        LinearLayout qm = quickCard(R.drawable.ic_music, "Music", Library.AUDIO.size() + " songs",
-                v -> ((MainActivity) act).showTab(MainActivity.TAB_MUSIC));
-        quick.addView(qv);
-        quick.addView(qm);
-        content.addView(quick);
+        content.addView(Rows.gridRow(act,
+                Rows.gridCell(act, R.drawable.ic_video, "Videos",
+                        v -> ((MainActivity) act).showTab(MainActivity.TAB_VIDEOS)),
+                Rows.gridCell(act, R.drawable.ic_music, "Music",
+                        v -> ((MainActivity) act).showTab(MainActivity.TAB_MUSIC)),
+                Rows.gridCell(act, R.drawable.ic_folder, "Folders",
+                        v -> ((MainActivity) act).showTab(MainActivity.TAB_FOLDERS))));
+        content.addView(Rows.gridRow(act,
+                Rows.gridCell(act, R.drawable.ic_shield, "Private Vault",
+                        v -> act.startActivity(new Intent(act, VaultActivity.class))),
+                Rows.gridCell(act, R.drawable.ic_history, "History",
+                        v -> act.startActivity(new Intent(act, HistoryActivity.class))),
+                Rows.gridCell(act, R.drawable.ic_sd, "Storage",
+                        v -> act.startActivity(new Intent(act, StorageActivity.class)))));
 
         // Continue watching
         List<MediaItem> cont = Library.resolveKeys(db.continueWatchingKeys(10));
@@ -178,23 +184,6 @@ public class HomeTab extends Tab {
             content.addView(Ui.spacer(act, 16));
             content.addView(Ui.sub(act, "No media found yet. Add songs or videos to your phone, then pull Refresh from the Videos or Music tab."));
         }
-    }
-
-    private LinearLayout quickCard(int icon, String label, String sub, View.OnClickListener click) {
-        LinearLayout card = new LinearLayout(act);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(Ui.gradientBg(16));
-        card.setPadding(Ui.dp(16), Ui.dp(14), Ui.dp(16), Ui.dp(14));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        if (label.equals("Videos")) lp.setMargins(0, 0, Ui.dp(6), 0); else lp.setMargins(Ui.dp(6), 0, 0, 0);
-        card.setLayoutParams(lp);
-        card.addView(Ui.icon(act, icon, 26, 0xFFFFFFFF));
-        TextView t = Ui.text(act, label, 16, 0xFFFFFFFF, true);
-        t.setPadding(0, Ui.dp(8), 0, 0);
-        card.addView(t);
-        card.addView(Ui.text(act, sub, 12.5f, 0xE6FFFFFF, false));
-        card.setOnClickListener(click);
-        return card;
     }
 
     private void addRow(final MediaItem it) {

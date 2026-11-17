@@ -50,3 +50,30 @@ Suggested order on the phone: install over the old Sonora (same signing key)
 controls) → play one video (check gestures, PiP, resume) → set a vault PIN
 and import one photo-video, confirm it disappears from the gallery flow and
 plays inside the vault → toggle the light theme.
+
+---
+
+## v3.1 verification (Nov 17, 2026) — compile/static only, NOT device-tested
+
+| Check | Result |
+|---|---|
+| aapt2 resource compile (46 vector icons incl. 4 new, 2 layouts, sheet anims, values) | ✅ pass |
+| aapt2 link with ads-SDK manifest merge + --extra-packages (GMS ads 23.6.0) | ✅ pass |
+| javac — all 38 Java sources (incl. Ads, MediaSheet, PressFx, History, Help), --release 8, android-34 + ads classpath | ✅ pass (0 errors) |
+| d8 multidex (min-api 24) | ✅ pass (informational warnings only, same class as Ilmora's ads build) |
+| zipalign + apksigner sign (debug.keystore, same key as v2.x/v3.0) | ✅ pass |
+| apksigner verify on the **delivery file** | ✅ signature valid (CN=Android Debug) |
+| aapt2 dump badging on the delivery file | ✅ com.nawazishali.sonora, versionCode 11, versionName 3.1, minSdk 24, targetSdk 34 |
+| AdMob checks on delivery file | ✅ APPLICATION_ID meta-data = ca-app-pub-5229747293404900~3066756153 present in binary manifest; INTERNET + ACCESS_NETWORK_STATE among 22 permissions |
+| Drive replacement | ✅ same file ID 17DexUZs_8GX_ODWNoGMEpmvU7QuFmMBt; Drive size 5,493,834 bytes == local delivery file |
+| Static review of the timeline fix | ✅ seek scale is real ms in both players; duration chain player → retriever → MediaStore; max adopts player duration dynamically; position clamped |
+
+**Still NOT device-tested** (no emulator/device in this environment). The
+user's 20-point checklist from v3.0 still applies, plus for v3.1 on the
+phone: (a) play a long video and confirm the seek bar now tracks to the
+real end and drag-seeking lands at the dragged position; (b) long-press /
+⋮ a few items in each tab and confirm the sheet opens, drags down to
+dismiss, and each row works (PiP row especially); (c) confirm the banner
+area shows nothing yet (account unverified) and the app behaves exactly as
+before; (d) open several videos in a row and confirm no interstitial
+appears more than once per 3 minutes (once ads serve).

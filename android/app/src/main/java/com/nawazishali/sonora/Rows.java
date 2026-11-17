@@ -44,9 +44,105 @@ public class Rows {
             ImageView fav = Ui.icon(ctx, R.drawable.ic_fav, 18, Theme.ACCENT);
             row.addView(fav);
         }
+        // Overflow button (v3.1): opens the same 3D MediaSheet as long-press.
+        ImageView more = new ImageView(ctx);
+        more.setImageResource(R.drawable.ic_more);
+        more.setColorFilter(Theme.TEXT2);
+        more.setPadding(Ui.dp(8), Ui.dp(8), Ui.dp(2), Ui.dp(8));
+        more.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(36), Ui.dp(36)));
+        more.setOnClickListener(v -> {
+            if (ctx instanceof android.app.Activity) ItemMenu.show((android.app.Activity) ctx, it, null);
+        });
+        PressFx.apply(more);
+        row.addView(more);
         if (click != null) row.setOnClickListener(click);
         if (longClick != null) row.setOnLongClickListener(longClick);
         return row;
+    }
+
+    // ---------- "Me"-style elements: big icon grid + clean icon list rows ----------
+    // Airy layout in the spirit of the user's reference screenshots, drawn with
+    // Sonora's own vector icons in the Midnight Violet palette. No cards in the
+    // grid; list rows are flat with thin dividers.
+
+    /** One big-icon grid cell: large icon on top, label underneath, equal weight. */
+    public static LinearLayout gridCell(Context ctx, int iconRes, String label, View.OnClickListener click) {
+        LinearLayout cell = new LinearLayout(ctx);
+        cell.setOrientation(LinearLayout.VERTICAL);
+        cell.setGravity(Gravity.CENTER);
+        cell.setPadding(Ui.dp(4), Ui.dp(14), Ui.dp(4), Ui.dp(12));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        cell.setLayoutParams(lp);
+        ImageView iv = new ImageView(ctx);
+        iv.setImageResource(iconRes);
+        iv.setColorFilter(Theme.SECONDARY);
+        iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(31), Ui.dp(31)));
+        cell.addView(iv);
+        TextView t = Ui.text(ctx, label, 13, Theme.TEXT, false);
+        t.setGravity(Gravity.CENTER);
+        t.setMaxLines(2);
+        t.setPadding(0, Ui.dp(8), 0, 0);
+        cell.addView(t);
+        if (click != null) cell.setOnClickListener(click);
+        PressFx.apply(cell);
+        return cell;
+    }
+
+    /** A horizontal row of grid cells (pass 3 for the reference 3-column look). */
+    public static LinearLayout gridRow(Context ctx, View... cells) {
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        for (View c : cells) row.addView(c);
+        return row;
+    }
+
+    /** Flat list row: left icon + label (+ optional trailing state text), no card. */
+    public static LinearLayout menuRow(Context ctx, int iconRes, String label, String trailing,
+                                       View.OnClickListener click) {
+        LinearLayout row = new LinearLayout(ctx);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(Ui.dp(6), Ui.dp(15), Ui.dp(6), Ui.dp(15));
+        row.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        ImageView iv = new ImageView(ctx);
+        iv.setImageResource(iconRes);
+        iv.setColorFilter(Theme.TEXT);
+        iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(25), Ui.dp(25)));
+        row.addView(iv);
+        TextView t = Ui.text(ctx, label, 15.5f, Theme.TEXT, false);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        tlp.setMargins(Ui.dp(16), 0, 0, 0);
+        t.setLayoutParams(tlp);
+        row.addView(t);
+        if (trailing != null && !trailing.isEmpty()) {
+            row.addView(Ui.text(ctx, trailing, 13, Theme.TEXT2, false));
+        }
+        if (click != null) row.setOnClickListener(click);
+        PressFx.apply(row);
+        return row;
+    }
+
+    /** Thin divider under a menu row, aligned with the label (like the reference). */
+    public static View menuDivider(Context ctx) {
+        View v = new View(ctx);
+        v.setBackgroundColor(Theme.BORDER);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        lp.setMargins(Ui.dp(47), 0, 0, 0);
+        v.setLayoutParams(lp);
+        return v;
+    }
+
+    /** Thick soft break between a grid block and a list block. */
+    public static View sectionBreak(Context ctx) {
+        View v = new View(ctx);
+        v.setBackgroundColor(Theme.ELEVATED);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(8));
+        lp.setMargins(0, Ui.dp(10), 0, Ui.dp(4));
+        v.setLayoutParams(lp);
+        return v;
     }
 
     public static LinearLayout settingRow(Context ctx, int iconRes, String title, String subtitle,

@@ -107,3 +107,77 @@ Nothing here is claimed as device-tested — see TESTING-REPORT.md.
 - ✅ All scanning/decoding/encryption off the main thread; thumbnail LruCache;
   streamed vault crypto (no whole-file memory loads); no network use at all;
   no analytics; partial wake lock only during music playback
+
+---
+
+# v3.1 additions (Nov 17, 2026)
+
+## Timeline bug fix
+- ✅ Root cause found in the v3.0 code: both players computed seek progress on
+  a 0..1000 scale but never called `seek.setMax(1000)`; a SeekBar's default
+  max is 100, so the bar saturated at 10% of the file while playback
+  continued. v3.1 uses real milliseconds end-to-end (max = duration,
+  progress = position), duration resolved player-first
+  (MediaPlayer.getDuration() → MediaMetadataRetriever → MediaStore), the max
+  updates dynamically if the player's duration differs, and position is
+  clamped ≤ duration. Same fix in the music player (identical defect).
+- ✅ Unit audit: MediaStore DURATION (ms) and SIZE (bytes) were already read
+  and formatted correctly everywhere (list/grid/folders/storage/details).
+
+## Home & Settings redesign (reference element style)
+- ✅ Settings tab rebuilt in the user's reference style: a 3×3 grid of large
+  line icons with labels (Private Vault, Extract Audio, Storage, Folders,
+  Theme, History, Share App, Large Files, Refresh Library) over a flat icon
+  list with thin dividers (Theme, Sleep Timer, Equalizer, Private Vault,
+  Storage Dashboard, Playback History, Help, About) — Midnight Violet, own
+  vector icons, no emoji, no copied artwork, and NO coins/VIP/ad placeholders
+  (those PLAYit monetization elements were deliberately not copied).
+- ✅ Every grid cell and row performs a real action (video-picker + M4A
+  extraction for Extract Audio; StorageActivity scrolled to largest files
+  for Large Files; real share intent for Share App). No dead elements.
+- ✅ Home tab keeps all real-data sections and gains the same-style
+  quick-access icon grid (Videos, Music, Folders, Private Vault, History,
+  Storage) under the welcome header and search bar.
+- ✅ New screens: Playback History (history table, most recent first, with
+  Clear) and Help (real usage notes for gestures, subtitles, vault, files).
+
+## "3D box" popup interactions
+- ✅ MediaSheet: tapping a media item's overflow (⋮) button or long-pressing
+  it anywhere (Videos, Music, Folders, Home sections, search results,
+  history) opens a raised bottom sheet — 18dp elevation shadow, rounded top
+  corners, gradient header with artwork + title + real metadata (duration,
+  size, format, path), then all actions as icon rows. Slides up over a
+  dimmed background; dismisses on outside tap or drag-down on the header.
+- ✅ Video rows: Play, Play in Picture-in-Picture (player opens and enters
+  PiP once prepared), Add/Remove Favorites, Extract Audio (M4A), Share,
+  Open with…, Rename, Details (now incl. format + real resolution), Delete.
+- ✅ Song rows: Play, Play Next, Add to Queue (new MusicService queue
+  operations), Add to Playlist, Add/Remove Favorites, Share, Open with…,
+  Rename, Details, Delete.
+- ✅ Folder long-press opens the folder sheet: Open + Details (song/video
+  counts and sizes).
+- ✅ PressFx 3D press feedback: buttons and grid cells scale down slightly
+  with an elevation drop on touch and spring back on release (native
+  ViewPropertyAnimator). Applied to the Home/Settings grids and lists,
+  bottom-nav items, mini-player buttons, media rows' overflow, sheet rows,
+  and both players' control buttons (touch listeners never consume events,
+  so clicks, long-presses, scrolling and player gestures are unaffected).
+
+## AdMob (owner's real account)
+- ✅ Integrated with the same proven manual pipeline as Ilmora (Google
+  Mobile Ads SDK 23.6.0 bundled + dexed without Gradle, manifests merged).
+  App ID ca-app-pub-5229747293404900~3066756153 (manifest meta-data,
+  verified in the delivery APK); INTERNET + ACCESS_NETWORK_STATE added.
+- ✅ Banner unit ca-app-pub-5229747293404900/4996795821: anchored-adaptive
+  banner in MainActivity's layout flow between the tab content and the
+  mini-player (directly above the bottom navigation when the mini-player
+  is hidden), hidden on the Settings tab. The container stays GONE until
+  an ad actually loads — no empty box.
+- ✅ Interstitial unit ca-app-pub-5229747293404900/4613652442: preloaded;
+  shown only when the user opens a video, at most once every 3 minutes,
+  never on app start and never during playback (in-player next/previous
+  does not pass the gate). If no ad is loaded, the video opens instantly.
+- ⚠️ The AdMob ACCOUNT is still "being verified", so real ads do NOT serve
+  yet. The integration fails silently by design (no dialogs, no crashes,
+  banner space collapses). Ads will start serving once Google approves the
+  account — no app update needed. Never click your own ads.

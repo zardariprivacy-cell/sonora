@@ -195,6 +195,30 @@ public class MusicService extends Service {
 
     public List<MediaItem> getQueue() { return new ArrayList<>(queue); }
     public int getIndex() { return index; }
+
+    /** Insert a song right after the current track (MediaSheet "Play Next"). */
+    public void playNext(MediaItem it) {
+        if (it == null) return;
+        if (index < 0 || queue.isEmpty()) {
+            List<MediaItem> q = new ArrayList<>();
+            q.add(it);
+            setQueue(q, 0);
+            return;
+        }
+        queue.add(index + 1, it);
+    }
+
+    /** Append a song to the end of the queue (MediaSheet "Add to Queue"). */
+    public void addToQueue(MediaItem it) {
+        if (it == null) return;
+        if (index < 0 || queue.isEmpty()) {
+            List<MediaItem> q = new ArrayList<>();
+            q.add(it);
+            setQueue(q, 0);
+            return;
+        }
+        queue.add(it);
+    }
     public MediaItem current() { return index >= 0 && index < queue.size() ? queue.get(index) : null; }
     public boolean isPlaying() { try { return player != null && player.isPlaying(); } catch (Throwable t) { return false; } }
     public boolean isShuffle() { return shuffle; }

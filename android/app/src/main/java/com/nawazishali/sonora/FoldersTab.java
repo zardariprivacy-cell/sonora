@@ -125,11 +125,17 @@ public class FoldersTab extends Tab {
             texts.addView(Ui.sub(act, sb.toString()));
             row.addView(texts);
             row.addView(Ui.text(act, "›", 22, Theme.TEXT2, false));
-            row.setOnClickListener(v -> {
+            final Runnable openFolder = () -> {
                 Intent i = new Intent(act, FolderMediaActivity.class);
                 i.putExtra("bucketId", f.id);
                 i.putExtra("bucketName", f.name);
                 act.startActivity(i);
+            };
+            row.setOnClickListener(v -> openFolder.run());
+            // Long-press (v3.1): the folder "3D box" with Open / Details.
+            row.setOnLongClickListener(v -> {
+                MediaSheet.showFolder(act, f, openFolder);
+                return true;
             });
             content.addView(row);
         }

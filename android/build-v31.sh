@@ -1,0 +1,140 @@
+set -e
+# Sonora v3.1 build WITH AdMob — same manual ads pipeline proven on Ilmora
+# (~/workspace/apps/manualbuild-ads.sh): Google Mobile Ads SDK 23.6.0 AARs
+# pre-exploded in ~/workspace/tools/ads-sdk/{libs,deps}; manifests merged,
+# resources linked with --extra-packages, everything dexed with d8.
+export JAVA_HOME=~/workspace/tools/jdk
+BT=~/workspace/tools/android-sdk/build-tools/34.0.0
+AJAR=~/workspace/tools/android-sdk/platforms/android-34/android.jar
+PROJ=~/workspace/apps/sonora-android
+SDKLIBS=~/workspace/tools/ads-sdk/libs
+DEPS=~/workspace/tools/ads-sdk/deps
+export PATH=$JAVA_HOME/bin:$BT:$PATH
+cd $PROJ
+rm -rf build-v31
+mkdir -p build-v31/compiled build-v31/gen build-v31/classes build-v31/dex build-v31/stage
+
+echo "== merge manifests =="
+python3 - <<'PYEOF'
+import os
+import xml.etree.ElementTree as ET
+
+ANDROID = "http://schemas.android.com/apk/res/android"
+ET.register_namespace("android", ANDROID)
+
+libs_dir = os.path.expanduser("~/workspace/tools/ads-sdk/libs")
+s = open("app/src/main/AndroidManifest.xml").read()
+
+perms, perm_seen = [], set()
+app_children, child_seen = [], set()
+queries_blocks = []
+extra_packages = []
+
+def aname(el):
+    return el.get("{%s}name" % ANDROID) or ""
+
+for lib in sorted(os.listdir(libs_dir)):
+    mpath = os.path.join(libs_dir, lib, "AndroidManifest.xml")
+    if not os.path.exists(mpath):
+        continue
+    try:
+        tree = ET.parse(mpath)
+    except Exception as e:
+        print("skip unparseable manifest", lib, e)
+        continue
+    root = tree.getroot()
+    pkg = root.get("package")
+    if pkg and os.path.isdir(os.path.join(libs_dir, lib, "res")):
+        extra_packages.append(pkg)
+    for el in root:
+        if el.tag == "uses-permission":
+            n = aname(el)
+            if n and n not in perm_seen:
+                perm_seen.add(n)
+                perms.append(ET.tostring(el, encoding="unicode"))
+        elif el.tag == "queries":
+            queries_blocks.append(ET.tostring(el, encoding="unicode"))
+        elif el.tag == "application":
+            for child in el:
+                key = (child.tag, aname(child))
+                if key in child_seen:
+                    continue
+                child_seen.add(key)
+                app_children.append(ET.tostring(child, encoding="unicode"))
+
+print("extra packages (with res):", len(extra_packages))
+print("lib permissions:", len(perms), "lib app components:", len(app_children))
+
+perm_text = "\n    ".join(p.strip() for p in perms)
+s = s.replace("    <application", perm_text + "\n\n    <application", 1)
+comp_text = "\n        ".join(c.strip() for c in app_children)
+s = s.replace("    </application>", "        " + comp_text + "\n    </application>", 1)
+if queries_blocks:
+    q = "\n    ".join(b.strip() for b in queries_blocks)
+    s = s.replace("</manifest>", "    " + q + "\n</manifest>", 1)
+
+open("build-v31/AndroidManifest.xml", "w").write(s)
+open("build-v31/extra-packages.txt", "w").write(":".join(extra_packages))
+print("merged manifest written")
+PYEOF
+
+echo "== aapt2 compile (app + libs) =="
+aapt2 compile --dir app/src/main/res -o build-v31/compiled/res-app.zip
+i=0
+for libdir in $SDKLIBS/*/; do
+  if [ -d "$libdir/res" ]; then
+    i=$((i+1))
+    aapt2 compile --dir "$libdir/res" -o "build-v31/compiled/res-lib$i.zip" || echo "WARN: res compile failed for $libdir"
+  fi
+done
+echo "lib res zips: $(ls build-v31/compiled/ | grep -c lib)"
+
+echo "== aapt2 link =="
+EXTRA=$(cat build-v31/extra-packages.txt)
+aapt2 link -o build-v31/stage/app.apk -I $AJAR --manifest build-v31/AndroidManifest.xml -A app/src/main/assets \
+  --java build-v31/gen --extra-packages "$EXTRA" \
+  --min-sdk-version 24 --target-sdk-version 34 --version-code 11 --version-name 3.1 \
+  build-v31/compiled/*.zip
+
+echo "== javac =="
+CP="$AJAR"
+for j in $SDKLIBS/*/classes.jar; do CP="$CP:$j"; done
+for j in $DEPS/*.jar; do
+  case "$j" in
+    *kotlin-stdlib-common*|*kotlin-stdlib-jdk7*|*kotlin-stdlib-jdk8*|*kotlinx-coroutines-core-1.7.1.jar) echo "skip dup-prone jar: $j" ;;
+    *guava-31.1-android.jar) CP="$CP:$DEPS/guava-nolf.jar" ;;
+    *guava-nolf.jar) ;;
+    *) CP="$CP:$j" ;;
+  esac
+done
+echo "$CP" > build-v31/classpath.txt
+find app/src/main/java build-v31/gen -name "*.java" > build-v31/sources.txt
+javac -encoding UTF-8 --release 8 -cp "$CP" -d build-v31/classes @build-v31/sources.txt
+
+echo "== jar + d8 =="
+(cd build-v31/classes && jar cf ../classes.jar .)
+INPUTS="build-v31/classes.jar"
+for j in $SDKLIBS/*/classes.jar; do INPUTS="$INPUTS $j"; done
+for j in $DEPS/*.jar; do
+  case "$j" in
+    *kotlin-stdlib-common*|*kotlin-stdlib-jdk7*|*kotlin-stdlib-jdk8*|*kotlinx-coroutines-core-1.7.1.jar) ;;
+    *guava-31.1-android.jar) INPUTS="$INPUTS $DEPS/guava-nolf.jar" ;;
+    *guava-nolf.jar) ;;
+    *) INPUTS="$INPUTS $j" ;;
+  esac
+done
+d8 --min-api 24 --lib $AJAR --output build-v31/dex $INPUTS
+ls -la build-v31/dex/
+
+echo "== package dex =="
+cp build-v31/dex/classes*.dex build-v31/stage/
+(cd build-v31/stage && zip -q app.apk classes*.dex && rm classes*.dex)
+
+echo "== zipalign + sign =="
+zipalign -f -p 4 build-v31/stage/app.apk build-v31/app-aligned.apk
+KS=~/workspace/apps/debug.keystore
+apksigner sign --ks $KS --ks-pass pass:android --key-pass pass:android --out build-v31/Sonora.apk build-v31/app-aligned.apk
+apksigner verify build-v31/Sonora.apk && echo "signature OK"
+ls -la build-v31/Sonora.apk
+aapt2 dump badging build-v31/Sonora.apk | head -6
+echo "== SONORA v3.1 ADS BUILD DONE =="

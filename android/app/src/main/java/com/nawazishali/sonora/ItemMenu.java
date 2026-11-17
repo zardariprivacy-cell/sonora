@@ -39,61 +39,74 @@ public class ItemMenu {
         playVideoList(ctx, single(item), 0);
     }
 
-    public static void playVideoList(Context ctx, List<MediaItem> items, int index) {
+    /** Play a single video and drop straight into Picture-in-Picture. */
+    public static void playVideoPip(Context ctx, MediaItem item) {
+        playVideoList(ctx, single(item), 0, true);
+    }
+
+    public static void playVideoList(final Context ctx, final List<MediaItem> items, final int index) {
+        playVideoList(ctx, items, index, false);
+    }
+
+    public static void playVideoList(final Context ctx, final List<MediaItem> items, final int index,
+                                     final boolean startInPip) {
         if (items == null || items.isEmpty()) return;
-        VideoPlayerActivity.queue = new ArrayList<>(items);
-        VideoPlayerActivity.queueIndex = index;
-        Intent i = new Intent(ctx, VideoPlayerActivity.class);
-        i.putExtra("index", index);
-        ctx.startActivity(i);
+        Runnable go = () -> {
+            VideoPlayerActivity.queue = new ArrayList<>(items);
+            VideoPlayerActivity.queueIndex = index;
+            Intent i = new Intent(ctx, VideoPlayerActivity.class);
+            i.putExtra("index", index);
+            if (startInPip) i.putExtra("startInPip", true);
+            ctx.startActivity(i);
+        };
+        // Tasteful interstitial (v3.1): shown before the player opens, at most
+        // once every 3 minutes, only if one is already loaded. If not, the
+        // video opens instantly — navigation is never blocked by an ad.
+        if (ctx instanceof Activity && Ads.showInterstitialBefore((Activity) ctx, go)) return;
+        go.run();
+    }
+
+    /** Song: play after the current track (starts playback if nothing is playing). */
+    public static void playNext(Context ctx, MediaItem it) {
+        if (MusicService.instance != null && MusicService.instance.current() != null) {
+            MusicService.instance.playNext(it);
+            Toast.makeText(ctx, "Will play next: " + it.title, Toast.LENGTH_SHORT).show();
+        } else {
+            playAudio(ctx, single(it), 0);
+        }
+    }
+
+    /** Song: append to the play queue (starts playback if nothing is playing). */
+    public static void addToQueue(Context ctx, MediaItem it) {
+        if (MusicService.instance != null && MusicService.instance.current() != null) {
+            MusicService.instance.addToQueue(it);
+            Toast.makeText(ctx, "Added to queue: " + it.title, Toast.LENGTH_SHORT).show();
+        } else {
+            playAudio(ctx, single(it), 0);
+        }
+    }
+
+    /** Video: run the real M4A audio extraction (same flow as the old menu). */
+    public static void extractAudio(final Activity act, final MediaItem it) {
+        Toast.makeText(act, "Extracting audio…", Toast.LENGTH_SHORT).show();
+        AudioExtractor.extract(act, it, (ok, msg) -> {
+            Toast.makeText(act, msg, Toast.LENGTH_LONG).show();
+            if (ok) Library.scanAsync(act);
+        });
     }
 
     private static List<MediaItem> single(MediaItem it) {
         List<MediaItem> l = new ArrayList<>(); l.add(it); return l;
     }
 
-    /** Options dialog for one item. host is the Activity (needed for delete consent). */
+    /**
+     * Options for one item. v3.1: opens the raised "3D box" MediaSheet
+     * (artwork header + icon action rows) instead of the old plain dialog.
+     * Every existing caller (long-press and the new overflow button in
+     * lists/rows) gets the sheet through this single entry point.
+     */
     public static void show(final Activity act, final MediaItem it, final Runnable onChanged) {
-        final Db db = Db.get(act);
-        boolean fav = db.isFavorite(it.key());
-        List<String> opts = new ArrayList<>();
-        opts.add("Play");
-        opts.add(fav ? "Remove from favorites" : "Add to favorites");
-        if (!it.video) opts.add("Add to playlist");
-        if (it.video) opts.add("Extract audio (M4A)");
-        opts.add("Share");
-        opts.add("Open with…");
-        opts.add("Rename");
-        opts.add("Details");
-        opts.add("Delete");
-        new AlertDialog.Builder(act)
-                .setTitle(it.title)
-                .setItems(opts.toArray(new String[0]), (d, which) -> {
-                    String o = opts.get(which);
-                    switch (o) {
-                        case "Play":
-                            if (it.video) playVideo(act, it); else playAudio(act, single(it), 0);
-                            break;
-                        case "Add to favorites": case "Remove from favorites":
-                            db.setFavorite(it, !fav);
-                            if (onChanged != null) onChanged.run();
-                            break;
-                        case "Add to playlist": playlistPicker(act, it); break;
-                        case "Extract audio (M4A)":
-                            Toast.makeText(act, "Extracting audio…", Toast.LENGTH_SHORT).show();
-                            AudioExtractor.extract(act, it, (ok, msg) -> {
-                                Toast.makeText(act, msg, Toast.LENGTH_LONG).show();
-                                if (ok) Library.scanAsync(act);
-                            });
-                            break;
-                        case "Share": MediaActions.share(act, it); break;
-                        case "Open with…": MediaActions.openWith(act, it); break;
-                        case "Rename": renameDialog(act, it, onChanged); break;
-                        case "Details": detailsDialog(act, it); break;
-                        case "Delete": deleteDialog(act, it, onChanged); break;
-                    }
-                })
-                .show();
+        MediaSheet.show(act, it, onChanged);
     }
 
     public static void playlistPicker(final Activity act, final MediaItem it) {
@@ -136,7 +149,7 @@ public class ItemMenu {
                 .show();
     }
 
-    private static void renameDialog(final Activity act, final MediaItem it, final Runnable onChanged) {
+    static void renameDialog(final Activity act, final MediaItem it, final Runnable onChanged) {
         final EditText input = new EditText(act);
         input.setText(it.title);
         input.setSingleLine(true);
@@ -161,12 +174,24 @@ public class ItemMenu {
                 .show();
     }
 
-    private static void detailsDialog(Activity act, MediaItem it) {
+    static void detailsDialog(Activity act, MediaItem it) {
         StringBuilder sb = new StringBuilder();
         sb.append("Type: ").append(it.video ? "Video" : "Audio").append('\n');
+        if (it.mime != null && !it.mime.isEmpty()) sb.append("Format: ").append(it.mime).append('\n');
         if (!it.artist.isEmpty()) sb.append("Artist: ").append(it.artist).append('\n');
         if (!it.album.isEmpty()) sb.append("Album: ").append(it.album).append('\n');
         sb.append("Duration: ").append(Ui.fmtDuration(it.duration)).append('\n');
+        if (it.video) {
+            // Resolution from the file itself (not stored in MediaStore scan)
+            try {
+                android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+                r.setDataSource(act, it.uri);
+                String w = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
+                String h = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
+                if (w != null && h != null) sb.append("Resolution: ").append(w).append(" × ").append(h).append('\n');
+                r.release();
+            } catch (Throwable ignored) { }
+        }
         sb.append("Size: ").append(Ui.fmtSize(it.size)).append('\n');
         sb.append("Added: ").append(Ui.fmtDate(it.dateAdded)).append('\n');
         sb.append("Folder: ").append(it.bucketName).append('\n');
@@ -178,7 +203,7 @@ public class ItemMenu {
                 .show();
     }
 
-    private static void deleteDialog(final Activity act, final MediaItem it, final Runnable onChanged) {
+    static void deleteDialog(final Activity act, final MediaItem it, final Runnable onChanged) {
         new AlertDialog.Builder(act)
                 .setTitle("Delete this file?")
                 .setMessage("\"" + it.title + "\" will be permanently deleted from your device.")

@@ -55,4 +55,12 @@
         android:src="@drawable/ic_fav"
         android:visibility="gone"
         android:contentDescription="Favorite" />
+
+    <ImageView
+        android:id="@+id/more"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:padding="7dp"
+        android:src="@drawable/ic_more"
+        android:contentDescription="More actions" />
 </LinearLayout>

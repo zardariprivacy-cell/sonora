@@ -135,6 +135,20 @@ public class Db extends SQLiteOpenHelper {
         c.close(); return out;
     }
 
+    /** Keys of BOTH kinds ordered by most recent play (History screen). */
+    public List<String> recentAllKeys(int limit) {
+        List<String> out = new ArrayList<>();
+        Cursor c = getReadableDatabase().query("history", new String[]{"key"}, null, null, null, null,
+                "last_ts DESC", "" + limit);
+        while (c.moveToNext()) out.add(c.getString(0));
+        c.close(); return out;
+    }
+    public int historyCount() {
+        Cursor c = getReadableDatabase().rawQuery("SELECT COUNT(*) FROM history", null);
+        int n = c.moveToFirst() ? c.getInt(0) : 0; c.close(); return n;
+    }
+    public void clearHistory() { getWritableDatabase().delete("history", null, null); }
+
     // ---------- resume positions ----------
     public void savePosition(String key, long pos, long duration) {
         ContentValues v = new ContentValues();

@@ -34,6 +34,10 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
     private VisualizerView visualizer;
     private ScrollView lyricsScroll;
     private boolean seeking;
+    // Source-of-truth duration (ms). Same v3.0 defect as the video player:
+    // progress was computed on a 0..1000 scale but seek.setMax(1000) was never
+    // called, so the bar filled up at 10% of the song. v3.1 uses real ms.
+    private long durationMs = -1;
     private List<LrcLine> lrc;
     private int lastLrcIndex = -1;
 
@@ -118,13 +122,17 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         root.addView(seekRow);
         seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar s, int p, boolean user) {
-                if (user && svc != null && svc.getDuration() > 0)
-                    posLabel.setText(Ui.fmtDuration(svc.getDuration() * p / 1000));
+                // SeekBar progress is real milliseconds (max == durationMs).
+                if (user) posLabel.setText(Ui.fmtDuration(p));
             }
             @Override public void onStartTrackingTouch(SeekBar s) { seeking = true; }
             @Override public void onStopTrackingTouch(SeekBar s) {
                 seeking = false;
-                if (svc != null && svc.getDuration() > 0) svc.seekTo(svc.getDuration() * s.getProgress() / 1000);
+                if (svc != null) {
+                    long target = s.getProgress();
+                    if (durationMs > 0) target = Math.max(0, Math.min(target, durationMs));
+                    svc.seekTo(target);
+                }
             }
         });
 
@@ -143,6 +151,7 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         plp.setMargins(Ui.dp(14), 0, Ui.dp(14), 0);
         playBtn.setLayoutParams(plp);
         playBtn.setOnClickListener(v -> { if (svc != null) svc.toggle(); });
+        PressFx.apply(playBtn);
         ImageView next = controlBtn(R.drawable.ic_next, v -> { if (svc != null) svc.next(true); });
         repeatBtn = controlBtn(R.drawable.ic_repeat, v -> { if (svc != null) { svc.cycleRepeat(); refreshModes(); } });
         controls.addView(shuffleBtn); controls.addView(prev); controls.addView(playBtn);
@@ -182,6 +191,7 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         iv.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(10));
         iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(48), Ui.dp(48)));
         iv.setOnClickListener(click);
+        PressFx.apply(iv);
         return iv;
     }
 
@@ -201,6 +211,7 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         t.setGravity(Gravity.CENTER);
         l.addView(t);
         l.setOnClickListener(click);
+        PressFx.apply(l);
         return l;
     }
 
@@ -326,6 +337,9 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
     // ---------------- service listener ----------------
     @Override public void onTrackChanged(MediaItem item) {
         if (item == null) return;
+        durationMs = -1; // new track: re-adopt the player's duration in onProgress
+        seek.setProgress(0);
+        posLabel.setText("0:00");
         title.setText(item.title);
         artist.setText(item.subtitle());
         ImageLoader.load(this, item, art);
@@ -346,11 +360,29 @@ public class MusicPlayerActivity extends Activity implements MusicService.Listen
         }
     }
 
+    /** Adopt a duration (ms): the seek bar max and total-time label follow it. */
+    private void adoptDuration(long d) {
+        if (d <= 0 || d == durationMs) return;
+        durationMs = d;
+        seek.setMax((int) Math.min(d, Integer.MAX_VALUE));
+        durLabel.setText(Ui.fmtDuration(d));
+    }
+
     @Override public void onProgress(long pos, long dur) {
-        if (seeking || dur <= 0) return;
-        seek.setProgress((int) (pos * 1000 / dur));
-        posLabel.setText(Ui.fmtDuration(pos));
-        durLabel.setText(Ui.fmtDuration(dur));
+        if (seeking) return;
+        // The service passes the player's own position/duration — the player
+        // wins. If it cannot report a duration, fall back to the MediaStore
+        // value of the current track so the bar still has a sane scale.
+        if (dur > 0) adoptDuration(dur);
+        else if (durationMs <= 0 && svc != null && svc.current() != null) adoptDuration(svc.current().duration);
+        if (durationMs > 0) {
+            long p = Math.max(0, Math.min(pos, durationMs));
+            seek.setProgress((int) p);
+            posLabel.setText(Ui.fmtDuration(p));
+            durLabel.setText(Ui.fmtDuration(durationMs));
+        } else {
+            posLabel.setText(Ui.fmtDuration(pos));
+        }
         if (lrc != null && lyricsScroll.getVisibility() == View.VISIBLE) {
             int idx = -1;
             for (int i = 0; i < lrc.size(); i++) if (lrc.get(i).time <= pos) idx = i;

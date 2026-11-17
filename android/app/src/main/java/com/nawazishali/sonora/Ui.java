@@ -8,6 +8,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import android.widget.Toast;
+
 import java.util.Locale;
 
 /** Small programmatic-UI helpers so every screen shares the Midnight Violet look. */
@@ -84,6 +86,7 @@ public class Ui {
         TextView t = text(c, label, 13.5f, Theme.TEXT, false);
         if (iconRes != 0) t.setPadding(dp(7), 0, 0, 0);
         l.addView(t);
+        PressFx.apply(l);
         return l;
     }
 
@@ -91,6 +94,22 @@ public class Ui {
         View v = new View(c);
         v.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(hDp)));
         return v;
+    }
+
+    /** Share Sonora itself (name, tagline and the permanent APK link) via the system chooser. */
+    public static void shareApp(Context c) {
+        android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_SEND);
+        i.setType("text/plain");
+        i.putExtra(android.content.Intent.EXTRA_SUBJECT, "Sonora — Your Complete Media Experience");
+        i.putExtra(android.content.Intent.EXTRA_TEXT,
+                "Sonora — Your Complete Media Experience\n"
+                        + "Offline video & music player with a private vault. No account, no ads.\n"
+                        + "Download the APK: https://drive.google.com/uc?id=17DexUZs_8GX_ODWNoGMEpmvU7QuFmMBt&export=download");
+        try {
+            c.startActivity(android.content.Intent.createChooser(i, "Share Sonora"));
+        } catch (Exception e) {
+            android.widget.Toast.makeText(c, "No app available to share with", Toast.LENGTH_SHORT).show();
+        }
     }
 
     public static String fmtDuration(long ms) {

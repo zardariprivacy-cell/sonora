@@ -21,6 +21,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- AdMob (v3.1) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -30,6 +34,11 @@
         android:hardwareAccelerated="true"
         android:requestLegacyExternalStorage="true"
         android:largeHeap="false">
+
+        <!-- AdMob App ID (owner's real Sonora app, added in v3.1). -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-5229747293404900~3066756153" />
 
         <activity
             android:name=".SplashActivity"
@@ -62,6 +71,16 @@
 
         <activity
             android:name=".StorageActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <activity
+            android:name=".HistoryActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <activity
+            android:name=".HelpActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 

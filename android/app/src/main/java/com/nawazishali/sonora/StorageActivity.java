@@ -14,12 +14,15 @@ import java.util.List;
 
 /** Storage dashboard: device totals, library sizes, large files, recently added. */
 public class StorageActivity extends Activity {
+    private ScrollView scroll;
+    private TextView largeHeader;
+
     @Override protected void onCreate(Bundle saved) {
         super.onCreate(saved);
         Theme.init(this);
         Ui.init(this);
 
-        ScrollView scroll = new ScrollView(this);
+        scroll = new ScrollView(this);
         scroll.setBackgroundColor(Theme.BG);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -66,7 +69,8 @@ public class StorageActivity extends Activity {
         List<MediaItem> all = new ArrayList<>();
         all.addAll(Library.AUDIO); all.addAll(Library.VIDEO);
         Collections.sort(all, (a, b) -> Long.compare(b.size, a.size));
-        content.addView(Ui.section(this, "Largest files"));
+        largeHeader = Ui.section(this, "Largest files");
+        content.addView(largeHeader);
         int n = Math.min(15, all.size());
         if (n == 0) content.addView(Ui.sub(this, "No media in the library yet."));
         for (int i = 0; i < n; i++) {
@@ -87,6 +91,11 @@ public class StorageActivity extends Activity {
             content.addView(Rows.mediaRow(this, it,
                     v -> { if (it.video) ItemMenu.playVideo(this, it); else ItemMenu.playAudio(this, one(it), 0); },
                     v -> { ItemMenu.show(this, it, null); return true; }));
+        }
+
+        // "Large Files" shortcuts (Home/Settings grids) land on the largest-files section
+        if ("large".equals(getIntent().getStringExtra("focus"))) {
+            content.post(() -> scroll.scrollTo(0, Math.max(0, largeHeader.getTop() - Ui.dp(6))));
         }
     }
 

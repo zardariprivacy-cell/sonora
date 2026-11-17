@@ -9,6 +9,7 @@ import android.content.res.Configuration;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.media.AudioManager;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
@@ -60,6 +61,13 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     private FrameLayout root;
 
     private boolean prepared = false, controlsVisible = true, locked = false, seeking = false;
+    private boolean startInPip = false; // MediaSheet "Play in Picture-in-Picture"
+    // Source-of-truth duration (ms) for the seek bar. v3.0 drove the SeekBar on a
+    // 0..1000 scale but never called seek.setMax(1000) — the SeekBar default max
+    // is 100, so the bar saturated at 10% of the video while playback continued
+    // ("timeline finishes early"). v3.1 uses real milliseconds end to end:
+    // max = duration, progress = position, both from the player (see below).
+    private long durationMs = -1;
     private int aspectMode = ASPECT_FIT;
     private float speed = 1f;
     private boolean repeatOne = false;
@@ -92,6 +100,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         queueIndex = getIntent().getIntExtra("index", queueIndex);
+        startInPip = getIntent().getBooleanExtra("startInPip", false);
         buildUi();
         setupGestures();
         handler.post(ticker);
@@ -194,6 +203,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         plp.setMargins(Ui.dp(16), 0, Ui.dp(16), 0);
         playBtn.setLayoutParams(plp);
         playBtn.setOnClickListener(v -> togglePlay());
+        PressFx.apply(playBtn);
         centerControls.addView(playBtn);
         centerControls.addView(centerTextBtn("+10s", v -> seekBy(10_000)));
         centerControls.addView(centerBtn(R.drawable.ic_next, v -> nextVideo(true)));
@@ -220,17 +230,17 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         bottomBar.addView(seekRow);
         seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar s, int p, boolean user) {
-                if (user && player != null && prepared) {
-                    try { posLabel.setText(Ui.fmtDuration(player.getDuration() * p / 1000)); }
-                    catch (Throwable ignored) { }
-                }
+                // SeekBar progress is real milliseconds (max == durationMs).
+                if (user) posLabel.setText(Ui.fmtDuration(p));
             }
             @Override public void onStartTrackingTouch(SeekBar s) { seeking = true; }
             @Override public void onStopTrackingTouch(SeekBar s) {
                 seeking = false;
                 if (player != null && prepared) {
-                    try { player.seekTo((int) (player.getDuration() * (long) s.getProgress() / 1000)); }
-                    catch (Throwable ignored) { }
+                    long target = s.getProgress();
+                    long dur = effectiveDuration();
+                    if (dur > 0) target = Math.max(0, Math.min(target, dur));
+                    try { player.seekTo((int) target); } catch (Throwable ignored) { }
                 }
                 scheduleHide();
             }
@@ -265,6 +275,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         iv.setPadding(Ui.dp(9), Ui.dp(9), Ui.dp(9), Ui.dp(9));
         iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(42), Ui.dp(42)));
         iv.setOnClickListener(click);
+        PressFx.apply(iv);
         return iv;
     }
 
@@ -275,6 +286,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         iv.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(10));
         iv.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(52), Ui.dp(52)));
         iv.setOnClickListener(click);
+        PressFx.apply(iv);
         return iv;
     }
 
@@ -286,6 +298,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         lp.setMargins(Ui.dp(8), 0, Ui.dp(8), 0);
         t.setLayoutParams(lp);
         t.setOnClickListener(click);
+        PressFx.apply(t);
         return t;
     }
 
@@ -296,6 +309,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         t.setLayoutParams(lp);
         t.setPadding(0, Ui.dp(8), 0, Ui.dp(2));
         t.setOnClickListener(click);
+        PressFx.apply(t);
         return t;
     }
 
@@ -395,6 +409,13 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         final MediaItem it = current();
         if (it == null) { finish(); return; }
         titleView.setText(it.title);
+        // Reset the timeline for the new video; provisionally trust the
+        // MediaStore duration (ms) until the player reports its own.
+        durationMs = -1;
+        seek.setProgress(0);
+        posLabel.setText("0:00");
+        if (it.duration > 0) adoptDuration(it.duration);
+        else { seek.setMax(100); durLabel.setText("0:00"); }
         releasePlayer();
         prepared = false;
         player = new MediaPlayer();
@@ -414,12 +435,18 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
             videoW = mp.getVideoWidth(); videoH = mp.getVideoHeight();
             updateAspect();
             applySpeed();
+            adoptDuration(resolveDuration(mp, it));
             long resume = Db.get(this).getPosition(it.key());
-            if (resume > 5000 && resume < mp.getDuration() - 10000) mp.seekTo((int) resume);
+            long dur = effectiveDuration();
+            if (resume > 5000 && (dur <= 0 || resume < dur - 10000)) mp.seekTo((int) resume);
             mp.start();
             playBtn.setImageResource(R.drawable.ic_pause);
             buffering.setVisibility(View.GONE);
             updatePipParams();
+            if (startInPip) {
+                startInPip = false;
+                handler.postDelayed(() -> enterPip(), 200);
+            }
         });
         player.setOnCompletionListener(mp -> {
             Db.get(this).clearPosition(it.key());
@@ -462,7 +489,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     private void savePosition() {
         MediaItem it = current();
         if (it != null && player != null && prepared) {
-            try { Db.get(this).savePosition(it.key(), player.getCurrentPosition(), player.getDuration()); }
+            try { Db.get(this).savePosition(it.key(), player.getCurrentPosition(), effectiveDuration()); }
             catch (Throwable ignored) { }
         }
     }
@@ -483,7 +510,10 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
     private void seekBy(long delta) {
         if (player == null || !prepared) return;
         try {
-            long target = Math.max(0, Math.min(player.getDuration(), player.getCurrentPosition() + delta));
+            long dur = effectiveDuration();
+            long target = player.getCurrentPosition() + delta;
+            if (target < 0) target = 0;
+            if (dur > 0 && target > dur) target = dur;
             player.seekTo((int) target);
         } catch (Throwable ignored) { }
     }
@@ -501,14 +531,55 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         if (queueIndex > 0) { queueIndex--; startCurrent(); }
     }
 
+    // ---------- duration source of truth ----------
+    /** Player duration wins; then MediaMetadataRetriever; then the MediaStore value. */
+    private long resolveDuration(MediaPlayer mp, MediaItem it) {
+        long d = -1;
+        try { d = mp.getDuration(); } catch (Throwable ignored) { }
+        if (d <= 0) {
+            MediaMetadataRetriever r = new MediaMetadataRetriever();
+            try {
+                r.setDataSource(this, it.uri);
+                String s = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+                if (s != null) d = Long.parseLong(s);
+            } catch (Throwable ignored) { }
+            try { r.release(); } catch (Throwable ignored) { }
+        }
+        if (d <= 0 && it != null) d = it.duration;
+        return d;
+    }
+
+    /** Adopt a duration (ms): seek bar max and the total-time label follow it. */
+    private void adoptDuration(long d) {
+        if (d <= 0 || d == durationMs) return;
+        durationMs = d;
+        seek.setMax((int) Math.min(d, Integer.MAX_VALUE));
+        durLabel.setText(Ui.fmtDuration(d));
+    }
+
+    private long effectiveDuration() {
+        if (durationMs > 0) return durationMs;
+        if (player != null) {
+            try { long d = player.getDuration(); if (d > 0) return d; } catch (Throwable ignored) { }
+        }
+        return 0;
+    }
+
     private void updateProgress() {
         if (player == null || !prepared) return;
         try {
+            // If the player's own duration disagrees with what we show, the
+            // player wins — update the seek bar max dynamically.
+            long pd = player.getDuration();
+            if (pd > 0 && pd != durationMs) adoptDuration(pd);
             if (!seeking) {
-                long pos = player.getCurrentPosition(), dur = player.getDuration();
-                if (dur > 0) seek.setProgress((int) (pos * 1000 / dur));
+                long pos = player.getCurrentPosition();
+                if (durationMs > 0) {
+                    pos = Math.max(0, Math.min(pos, durationMs));
+                    seek.setProgress((int) pos);
+                    durLabel.setText(Ui.fmtDuration(durationMs));
+                }
                 posLabel.setText(Ui.fmtDuration(pos));
-                durLabel.setText(Ui.fmtDuration(dur));
             }
             if (srtCues != null) {
                 SrtParser.Cue cue = SrtParser.at(srtCues, player.getCurrentPosition());
@@ -739,6 +810,7 @@ public class VideoPlayerActivity extends Activity implements TextureView.Surface
         super.onNewIntent(intent);
         setIntent(intent);
         queueIndex = intent.getIntExtra("index", queueIndex);
+        startInPip = intent.getBooleanExtra("startInPip", false);
         if (surface != null) startCurrent();
     }
 

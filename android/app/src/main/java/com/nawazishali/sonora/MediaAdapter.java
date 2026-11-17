@@ -49,6 +49,15 @@ public class MediaAdapter extends BaseAdapter {
             badge.setVisibility(it.video ? View.VISIBLE : View.GONE);
             if (it.video) badge.setColorFilter(Theme.TEXT);
         }
+        // Overflow button (v3.1): opens the 3D MediaSheet, same as long-press.
+        ImageView more = v.findViewById(R.id.more);
+        if (more != null) {
+            more.setColorFilter(grid ? 0xFFFFFFFF : Theme.TEXT2);
+            more.setOnClickListener(vw -> {
+                if (ctx instanceof android.app.Activity)
+                    ItemMenu.show((android.app.Activity) ctx, it, null);
+            });
+        }
         return v;
     }
 }

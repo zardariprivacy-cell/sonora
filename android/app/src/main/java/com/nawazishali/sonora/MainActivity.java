@@ -30,6 +30,7 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
     private final LinearLayout[] navItems = new LinearLayout[5];
 
     private LinearLayout miniPlayer;
+    private LinearLayout adBox;
     private ImageView miniThumb, miniPlay;
     private TextView miniTitle, miniSub;
     private MusicService svc;
@@ -80,6 +81,17 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
         root.addView(contentBox);
 
+        // AdMob banner slot (v3.1): in the linear flow between the tab content
+        // and the mini-player, so it sits directly above the mini-player when
+        // that is visible and directly above the bottom navigation otherwise —
+        // it can never overlap either. Stays GONE until an ad actually loads
+        // (the AdMob account is still being verified, so for now it simply
+        // never appears). Hidden on the Settings tab.
+        adBox = new LinearLayout(this);
+        adBox.setGravity(Gravity.CENTER);
+        adBox.setVisibility(View.GONE);
+        root.addView(adBox);
+
         // Mini player
         miniPlayer = buildMiniPlayer();
         miniPlayer.setVisibility(View.GONE);
@@ -92,6 +104,9 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
         tabs = new Tab[]{new HomeTab(this), new VideosTab(this), new MusicTab(this),
                 new FoldersTab(this), new SettingsTab(this)};
         showTab(TAB_HOME);
+
+        Ads.init(this);
+        Ads.attachBanner(this, adBox);
 
         Library.addListener(this);
         if (!Library.scannedOnce) Library.scanAsync(this);
@@ -133,6 +148,7 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
         miniPlay.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(10));
         miniPlay.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(46), Ui.dp(46)));
         miniPlay.setOnClickListener(v -> { if (svc != null) svc.toggle(); });
+        PressFx.apply(miniPlay);
         mp.addView(miniPlay);
         ImageView next = new ImageView(this);
         next.setImageResource(R.drawable.ic_next);
@@ -140,6 +156,7 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
         next.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(10));
         next.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(46), Ui.dp(46)));
         next.setOnClickListener(v -> { if (svc != null) svc.next(true); });
+        PressFx.apply(next);
         mp.addView(next);
         mp.setOnClickListener(v -> startActivity(new Intent(this, MusicPlayerActivity.class)));
         return mp;
@@ -169,6 +186,7 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
             t.setTag("label");
             item.addView(t);
             item.setOnClickListener(v -> showTab(idx));
+            PressFx.apply(item);
             navItems[i] = item;
             nav.addView(item);
         }
@@ -176,6 +194,7 @@ public class MainActivity extends Activity implements Library.Listener, MusicSer
     }
 
     public void showTab(int idx) {
+        Ads.setBannerSuppressed(idx == TAB_SETTINGS);
         if (idx == currentTab) { tabs[idx].refresh(); return; }
         currentTab = idx;
         contentBox.removeAllViews();

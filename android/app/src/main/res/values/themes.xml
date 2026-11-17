@@ -19,4 +19,10 @@
         <item name="android:statusBarColor">#000000</item>
         <item name="android:navigationBarColor">#000000</item>
     </style>
+
+    <!-- Slide-up animation for the MediaSheet "3D box" dialogs (v3.1). -->
+    <style name="SonoraSheetAnim">
+        <item name="android:windowEnterAnimation">@anim/sheet_in</item>
+        <item name="android:windowExitAnimation">@anim/sheet_out</item>
+    </style>
 </resources>
